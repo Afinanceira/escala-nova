@@ -2,31 +2,20 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AFinanceira | Sistema Operacional</title>
-    <!-- CSS carregado no topo para performance visual -->
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-
     <div class="dashboard-container">
         <div class="card">
             <h2>Grade Horária do Turno</h2>
             <table>
                 <thead>
                     <tr>
-                        <th>HORÁRIO</th>
-                        <th>PIXBET</th>
-                        <th>BDS</th>
-                        <th>BETVIP</th>
-                        <th>GANHEI</th>
-                        <th>DISCORD</th>
-                        <th>STATUS</th>
+                        <th>HORÁRIO</th><th>PIXBET</th><th>BDS</th><th>BETVIP</th><th>GANHEI</th><th>DISCORD</th><th>STATUS</th>
                     </tr>
                 </thead>
-                <tbody id="escala-body">
-                    <!-- Conteúdo gerado pelo script.js -->
-                </tbody>
+                <tbody id="escala-body"></tbody>
             </table>
         </div>
 
@@ -38,9 +27,16 @@
             <input type="text" id="c4" placeholder="Colaborador 4">
             <button id="btn-girar" class="btn-gold">🔄 Girar Rodízio e Salvar</button>
         </div>
-    </div>
 
-    <!-- O script é carregado por último como módulo para garantir a execução correta -->
+        <div class="card">
+            <h3>Estrutura do Flash Report</h3>
+            <div id="flash-area" style="background:#0f172a; padding:15px; border-radius:5px;">
+                <p><strong>FLASH REPORT - (MADRUGADA)</strong></p>
+                <p>Data: <span id="data-atual"></span></p>
+                <p>PIXBET | BDS | BETVIP | GANHEI</p>
+            </div>
+        </div>
+    </div>
     <script type="module" src="script.js"></script>
 </body>
 </html>
