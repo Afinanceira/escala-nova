@@ -101,19 +101,48 @@ window.gerenciarStatus = async (id, valor) => {
 };
 
 // Lógica de Geração Automatizada do Rodízio de Turno
-document.getElementById("btn-gira").parentNode.querySelector("#btn-girar").addEventListener("click", async () => {
-    const n1 = document.getElementById("c1").value.trim() || "Leandro";
-    const n2 = document.getElementById("c2").value.trim() || "Ivah";
-    const n3 = document.getElementById("c3").value.trim() || "Tarcyla";
-    const n4 = document.getElementById("c4").value.trim() || "Paloma";
-    
-    const colaboradores = [n1, n2, n3, n4];
-    const horarios = ["00:00", "01:00", "02:00", "03:00", "04:00", "05:00", "06:00"];
-    
-    // Limpeza prévia para evitar conflitos de índices antigos
-    const querySnapshot = await getDocs(collection(db, "escala_ativa"));
-    for (const docSnap of querySnapshot.docs) {
-        await deleteDoc(doc(db, "escala_ativa", docSnap.id));
+const btnGirar = document.getElementById("btn-girar");
+
+if (btnGirar) {
+    btnGirar.addEventListener("click", async () => {
+        const n1 = document.getElementById("c1").value.trim() || "Leandro";
+        const n2 = document.getElementById("c2").value.trim() || "Ivah";
+        const n3 = document.getElementById("c3").value.trim() || "Tarcyla";
+        const n4 = document.getElementById("c4").value.trim() || "Paloma";
+        
+        const colaboradores = [n1, n2, n3, n4];
+        const horarios = ["00:00", "01:00", "02:00", "03:00", "04:00", "05:00", "06:00"];
+        
+        // Limpeza prévia para evitar conflitos de índices antigos
+        const querySnapshot = await getDocs(collection(db, "escala_ativa"));
+        for (const docSnap of querySnapshot.docs) {
+            await deleteDoc(doc(db, "escala_ativa", docSnap.id));
+        }
+        
+        // Injeção estruturada com matriz rotativa de horários e casas de apostas
+        for (let i = 0; i < horarios.length; i++) {
+            const p1 = colaboradores[(i + 0) % 4];
+            const p2 = colaboradores[(i + 1) % 4];
+            const p3 = colaboradores[(i + 2) % 4];
+            const p4 = colaboradores[(i + 3) % 4];
+            
+            await setDoc(doc(db, "escala_ativa", `turno_${i}`), {
+                ordem: i,
+                horario: horarios[i],
+                pixbet: p1,
+                bds: p2,
+                betvip: p3,
+                ganhei: p4,
+                original_pixbet: p1,
+                original_bds: p2,
+                original_betvip: p3,
+                original_ganhei: p4,
+                status: "Online"
+            });
+        }
+        alert("Escala gerada com sucesso!");
+    });
+}
     }
     
     // Injeção estruturada com matriz rotativa de horários e casas de apostas
