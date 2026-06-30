@@ -1,24 +1,100 @@
-/* Configurações Gerais */
+/* Paleta de Cores e Definições Gerais */
+:root {
+    --bg-main: #070b12;
+    --bg-card: #0f1624;
+    --gold: #D4AF37;
+    --gold-hover: #AA841A;
+    --text-color: #E2E8F0;
+    --border-color: #1E293B;
+    --danger: #EF4444;
+}
+
 body {
-    background-color: #0b1320;
-    color: #e0e0e0;
-    font-family: sans-serif;
-    padding: 20px;
+    background-color: var(--bg-main);
+    color: var(--text-color);
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    margin: 0;
+    padding: 0;
 }
 
 .dashboard-container {
     max-width: 1200px;
     margin: 0 auto;
+    padding: 30px 15px;
 }
 
+/* Layout do Cabeçalho principal */
+.main-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2px solid var(--gold);
+    padding-bottom: 15px;
+    margin-bottom: 30px;
+}
+
+.logo-area {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.lighthouse-icon {
+    width: 35px;
+    height: 35px;
+}
+
+.main-header h1 {
+    font-size: 24px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    color: #FFFFFF;
+    margin: 0;
+}
+
+.header-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+}
+
+.status-indicator {
+    width: 10px;
+    height: 10px;
+    background-color: #28a745;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+/* Estrutura de Cards */
 .card {
-    background: #1a2234;
-    padding: 20px;
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-color);
     border-radius: 8px;
-    margin-bottom: 20px;
+    padding: 20px;
+    margin-bottom: 25px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
 }
 
-/* Tabela */
+.card-header {
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 10px;
+    margin-bottom: 15px;
+}
+
+.card h2, .card h3 {
+    margin: 0;
+    color: var(--gold);
+    font-size: 18px;
+    font-weight: 500;
+}
+
+/* Tabelas Customizadas */
+.table-responsive {
+    overflow-x: auto;
+}
+
 table {
     width: 100%;
     border-collapse: collapse;
@@ -26,75 +102,160 @@ table {
 }
 
 th, td {
-    padding: 12px;
+    padding: 14px 16px;
     text-align: center;
-    border: 1px solid #2c3e50;
+    border-bottom: 1px solid var(--border-color);
 }
 
-th { background: #2c3e50; color: #f1c40f; }
+th {
+    background-color: #141E30;
+    color: var(--gold);
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
 
-/* Botões do Painel Administrativo */
-.btn-gold {
-    background: #f1c40f;
-    color: #000;
+td {
+    font-size: 14px;
+    color: #CBD5E1;
+}
+
+.text-bold {
+    font-weight: 600;
+    color: #FFFFFF;
+}
+
+/* Elemento Interativo Dropdown de Status */
+.dropdown {
+    position: relative;
+    display: inline-block;
+}
+
+.status-btn {
+    color: #FFFFFF;
     border: none;
-    padding: 10px 15px;
+    padding: 6px 16px;
+    font-size: 13px;
+    font-weight: 500;
     border-radius: 4px;
     cursor: pointer;
-    font-weight: bold;
-    margin-top: 10px;
+    min-width: 110px;
+    transition: transform 0.1s ease;
 }
 
-/* Estilo do Dropdown e Botão de Status */
-.dropdown { 
-    position: relative; 
-    display: inline-block; 
+.status-btn:active {
+    transform: scale(0.95);
 }
 
-.status-btn { 
-    color: white; 
-    border: none; 
-    padding: 8px 12px; 
-    cursor: pointer; 
-    border-radius: 4px; 
-    min-width: 120px;
-    font-size: 12px;
-}
-
-.dropdown-content { 
-    display: none; 
-    position: absolute; 
-    background: #2c3e50; 
-    min-width: 140px; 
-    z-index: 10;
+.dropdown-content {
+    display: none;
+    position: absolute;
+    right: 0;
+    background-color: #1E293B;
+    min-width: 150px;
+    box-shadow: 0px 8px 16px rgba(0,0,0,0.5);
     border-radius: 4px;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+    z-index: 100;
+    border: 1px solid var(--border-color);
 }
 
-.dropdown-content a { 
-    color: white; 
-    padding: 10px; 
-    text-decoration: none; 
-    display: block; 
+.dropdown-content a {
+    color: #F1F5F9;
+    padding: 10px 14px;
+    text-decoration: none;
+    display: block;
+    text-align: left;
     font-size: 13px;
-    border-bottom: 1px solid #1a2234;
 }
 
-.dropdown-content a:hover { 
-    background: #34495e; 
+.dropdown-content a:hover {
+    background-color: #334155;
+    color: var(--gold);
 }
 
-/* Efeito para abrir o menu ao clicar */
-.dropdown:focus-within .dropdown-content { 
-    display: block; 
+.dropdown:hover .dropdown-content {
+    display: block;
 }
 
-/* Inputs do Painel */
-input {
-    padding: 8px;
-    margin: 5px;
+/* Inputs da Administração */
+.admin-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.input-group label {
+    font-size: 12px;
+    color: #94A3B8;
+}
+
+.input-group input {
+    background-color: #070b12;
+    border: 1px solid var(--border-color);
     border-radius: 4px;
-    border: 1px solid #444;
-    background: #0b1320;
-    color: white;
+    padding: 10px;
+    color: #FFFFFF;
+    font-size: 14px;
+}
+
+.input-group input:focus {
+    border-color: var(--gold);
+    outline: none;
+}
+
+/* Botões do Sistema */
+.actions-area {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.btn-gold {
+    background-color: var(--gold);
+    color: #000000;
+    border: none;
+    padding: 12px 24px;
+    font-weight: 600;
+    font-size: 14px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.btn-gold:hover {
+    background-color: var(--gold-hover);
+}
+
+.btn-danger {
+    background-color: var(--danger);
+    color: #FFFFFF;
+    border: none;
+    padding: 12px 24px;
+    font-weight: 600;
+    font-size: 14px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.btn-danger:hover {
+    background-color: #DC2626;
+}
+
+/* Bloco do Flash Report */
+.flash-box {
+    background-color: #070b12;
+    border-left: 4px solid var(--gold);
+    padding: 15px;
+    border-radius: 0 4px 4px 0;
+}
+
+.flash-box p {
+    margin: 4px 0;
+    font-size: 14px;
 }
