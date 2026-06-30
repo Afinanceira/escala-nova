@@ -1,6 +1,6 @@
-import { db } from './firebaseConfig.js'; 
+import { db } from './firebaseConfig.js';
 import { 
-    collection, onSnapshot, doc, setDoc, updateDoc, query, orderBy 
+    collection, onSnapshot, doc, setDoc, updateDoc, query, orderBy, getDocs 
 } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
 
 const tbody = document.getElementById("escala-body");
@@ -11,19 +11,13 @@ onSnapshot(q, (snapshot) => {
     tbody.innerHTML = "";
     snapshot.forEach((doc) => {
         const d = doc.data();
-        const id = doc.id;
-        const statusClass = d.status === "Online" ? "ativo" : "";
-        
+        const statusClass = d.status && d.status.includes("Pausa") ? "" : "ativo";
         tbody.innerHTML += `
             <tr>
                 <td>${d.horario}</td>
-                <td>${d.pixbet}</td>
-                <td>${d.bds}</td>
-                <td>${d.betvip}</td>
-                <td>${d.ganhei}</td>
-                <td>Todos</td>
+                <td>${d.pixbet}</td><td>${d.bds}</td><td>${d.betvip}</td><td>${d.ganhei}</td>
                 <td>
-                    <button class="colaborador-btn ${statusClass}" onclick="window.marcarStatus('${id}', '${d.status}')">
+                    <button onclick="window.confirmarPresenca('${doc.id}')" class="colaborador-btn ${statusClass}">
                         ${d.status || 'Pausa'}
                     </button>
                 </td>
@@ -32,36 +26,51 @@ onSnapshot(q, (snapshot) => {
     });
 });
 
-// 2. Ação do Botão Girar
-document.getElementById("btn-girar").addEventListener("click", async () => {
-    let nomes = [
-        document.getElementById("c1").value,
-        document.getElementById("c2").value,
-        document.getElementById("c3").value,
-        document.getElementById("c4").value
-    ].filter(n => n.trim() !== "");
+// 2. Ação de Pausa com Realocação Automática
+window.iniciarPausa = async () => {
+    const nomePausa = document.getElementById("nome-pausa").value;
+    if (!nomePausa) return alert("Digite o nome de quem vai pausar!");
 
-    if (nomes.length < 2) return alert("Insira pelo menos 2 colaboradores!");
-    while (nomes.length < 4) nomes.push("Vago");
+    const snapshot = await getDocs(collection(db, "escala_ativa"));
+    const todosNomes = ["c1", "c2", "c3", "c4"].map(id => document.getElementById(id)?.value).filter(n => n && n.trim() !== "");
+    const ativos = todosNomes.filter(n => n !== nomePausa);
+
+    if (ativos.length === 0) return alert("Não há colaboradores disponíveis para realocação!");
+
+    snapshot.forEach(async (doc) => {
+        let dados = doc.data();
+        if (Object.values(dados).includes(nomePausa)) {
+            let casas = ["pixbet", "bds", "betvip", "ganhei"];
+            let novaEscala = {};
+            casas.forEach((c, i) => novaEscala[c] = ativos[i % ativos.length]);
+            
+            await updateDoc(doc.ref, { 
+                ...novaEscala, 
+                status: "Pausa (Saída de " + nomePausa + ")" 
+            });
+        }
+    });
+    alert("Realocação concluída!");
+};
+
+// 3. Ação do Botão Girar (Rodízio Justo)
+document.getElementById("btn-girar").addEventListener("click", async () => {
+    let nomes = ["c1", "c2", "c3", "c4"].map(id => document.getElementById(id).value).filter(n => n.trim() !== "");
+    if (nomes.length < 1) return alert("Insira os colaboradores!");
 
     const horas = ["23:00", "00:00", "01:00", "02:00", "03:00", "04:00", "05:00", "06:00"];
     
     for (let i = 0; i < horas.length; i++) {
-        const rodizio = [...nomes.slice(i % 4), ...nomes.slice(0, i % 4)];
-        await setDoc(doc(db, "escala_ativa", `turno_${horas[i].replace(":", "")}`), {
-            horario: horas[i],
-            pixbet: rodizio[0],
-            bds: rodizio[1],
-            betvip: rodizio[2],
-            ganhei: rodizio[3],
-            status: "Pausa"
+        let escala = {};
+        for(let j=0; j<4; j++) escala[["pixbet", "bds", "betvip", "ganhei"][j]] = nomes[(i + j) % nomes.length];
+        await setDoc(doc(db, "escala_ativa", `turno_${horas[i].replace(":", "")}`), { 
+            ...escala, status: "Pausa", horario: horas[i] 
         });
     }
-    alert("Rodízio gerado com sucesso!");
 });
 
-// 3. Função de Check-in
-window.marcarStatus = async (id, statusAtual) => {
-    const novoStatus = statusAtual === "Online" ? "Pausa" : "Online";
-    await updateDoc(doc(db, "escala_ativa", id), { status: novoStatus });
+// 4. Check-in Simples
+window.confirmarPresenca = async (id) => {
+    const docRef = doc(db, "escala_ativa", id);
+    await updateDoc(docRef, { status: "Online" });
 };
