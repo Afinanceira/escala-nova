@@ -1,6 +1,8 @@
 import { db } from './firebaseConfig.js';
 import { collection, onSnapshot, doc, updateDoc, query, orderBy, getDoc } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
 
+console.log("Script carregado com sucesso!");
+
 document.getElementById("data-atual").innerText = new Date().toLocaleDateString();
 
 const tbody = document.getElementById("escala-body");
