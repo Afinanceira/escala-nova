@@ -22,20 +22,25 @@ table { width: 100%; border-collapse: collapse; margin-top: 15px; }
 th, td { padding: 12px; border: 1px solid #334155; text-align: center; }
 th { background-color: #0f172a; color: #eab308; }
 
-/* Botões e Estilo de Check-in */
+/* Botões de Colaborador e Status */
 .colaborador-btn {
-    background-color: #065f46; 
+    background-color: #7f1d1d; /* Vermelho para Pausa */
     color: white; 
     border: none; 
-    padding: 6px 12px; 
+    padding: 8px 16px; 
     border-radius: 4px; 
     cursor: pointer;
     font-weight: bold;
+    transition: all 0.3s ease;
 }
+
+/* Esta é a classe que o JS aplica ao clicar */
 .colaborador-btn.ativo {
-    background-color: #059669;
+    background-color: #059669; /* Verde para Online */
     box-shadow: 0 0 10px #10b981;
 }
+
+/* Painel de Controle */
 .btn-gold { 
     background-color: #eab308; 
     color: #000; 
@@ -44,5 +49,14 @@ th { background-color: #0f172a; color: #eab308; }
     border: none; 
     border-radius: 4px; 
     cursor: pointer;
+    margin-top: 10px;
 }
-input { padding: 8px; border-radius: 4px; border: 1px solid #334155; background: #0f172a; color: white; }
+
+input { 
+    padding: 8px; 
+    border-radius: 4px; 
+    border: 1px solid #334155; 
+    background: #0f172a; 
+    color: white; 
+    margin-right: 5px;
+}
