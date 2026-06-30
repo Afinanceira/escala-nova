@@ -67,9 +67,10 @@ document.getElementById("btn-girar").addEventListener("click", async () => {
             ...escala, status: "Pausa", horario: horas[i] 
         });
     }
+    alert("Rodízio gerado com sucesso!");
 });
 
-// 4. Check-in Simples
+// 4. Check-in de Presença
 window.confirmarPresenca = async (id) => {
     const docRef = doc(db, "escala_ativa", id);
     await updateDoc(docRef, { status: "Online" });
