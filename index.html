@@ -19,20 +19,24 @@
             </table>
         </div>
 
-        <div id="admin-panel" class="card">
-            <h3>Girar Rodízio</h3>
-            <input type="text" id="c1" placeholder="Colaborador 1">
-            <input type="text" id="c2" placeholder="Colaborador 2">
-            <input type="text" id="c3" placeholder="Colaborador 3">
-            <input type="text" id="c4" placeholder="Colaborador 4">
-            <button id="btn-girar" class="btn-gold">🔄 Girar Rodízio e Salvar</button>
-            <button id="btn-girar" class="btn-gold">🔄 Girar Rodízio e Salvar</button>
+       <div id="admin-panel" class="card">
+    <h3>Configurações de Escala</h3>
+    <input type="text" id="c1" placeholder="Colaborador 1">
+    <input type="text" id="c2" placeholder="Colaborador 2">
+    <input type="text" id="c3" placeholder="Colaborador 3">
+    <input type="text" id="c4" placeholder="Colaborador 4">
     
-    <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #444;">
-        <h4 style="margin-bottom: 10px;">Controle de Pausa</h4>
-        <input type="text" id="nome-pausa" placeholder="Nome de quem vai pausar...">
-        <button class="btn-gold" onclick="window.iniciarPausa()">Confirmar Saída</button>
+    <div style="margin-top:10px;">
+        <button id="btn-girar" class="btn-gold">🔄 Girar Rodízio</button>
+        <button id="btn-limpar" class="btn-gold" style="background: #dc3545;">🗑️ Limpar Escala</button>
     </div>
+
+    <hr style="margin: 20px 0; border-top: 1px solid #444;">
+    
+    <h3>Controle de Pausa</h3>
+    <input type="text" id="nome-pausa" placeholder="Nome de quem vai pausar...">
+    <button class="btn-gold" onclick="window.iniciarPausa()">Confirmar Saída</button>
+</div>
 </div>
         </div>
 
