@@ -1,17 +1,46 @@
-<div class="card">
-    <h2>Grade Horária do Turno</h2>
-    <table>
-        <thead>
-            <tr><th>HORÁRIO</th><th>PIXBET</th><th>BDS</th><th>BETVIP</th><th>GANHEI</th><th>DISCORD</th><th>STATUS</th></tr>
-        </thead>
-        <tbody id="escala-body"></tbody>
-    </table>
-    
-    <div id="admin-panel">
-        <input type="text" id="c1" placeholder="P1">
-        <input type="text" id="c2" placeholder="P2">
-        <input type="text" id="c3" placeholder="P3">
-        <input type="text" id="c4" placeholder="P4">
-        <button id="btn-girar" class="btn-gold">🔄 Girar Rodízio</button>
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AFinanceira | Sistema Operacional</title>
+    <!-- CSS carregado no topo para performance visual -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div class="dashboard-container">
+        <div class="card">
+            <h2>Grade Horária do Turno</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>HORÁRIO</th>
+                        <th>PIXBET</th>
+                        <th>BDS</th>
+                        <th>BETVIP</th>
+                        <th>GANHEI</th>
+                        <th>DISCORD</th>
+                        <th>STATUS</th>
+                    </tr>
+                </thead>
+                <tbody id="escala-body">
+                    <!-- Conteúdo gerado pelo script.js -->
+                </tbody>
+            </table>
+        </div>
+
+        <div id="admin-panel" class="card">
+            <h3>Girar Rodízio</h3>
+            <input type="text" id="c1" placeholder="Colaborador 1">
+            <input type="text" id="c2" placeholder="Colaborador 2">
+            <input type="text" id="c3" placeholder="Colaborador 3">
+            <input type="text" id="c4" placeholder="Colaborador 4">
+            <button id="btn-girar" class="btn-gold">🔄 Girar Rodízio e Salvar</button>
+        </div>
     </div>
-</div>
+
+    <!-- O script é carregado por último como módulo para garantir a execução correta -->
+    <script type="module" src="script.js"></script>
+</body>
+</html>
