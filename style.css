@@ -1,0 +1,9 @@
+.colaborador-btn {
+    background-color: #065f46; 
+    color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;
+}
+.colaborador-btn.ativo {
+    background-color: #059669; /* Verde mais vivo */
+    box-shadow: 0 0 10px #10b981; /* O "brilho" de check-in */
+}
+.btn-gold { background-color: #eab308; color: black; font-weight: bold; padding: 10px; border: none; border-radius: 4px; }
