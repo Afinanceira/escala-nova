@@ -5,10 +5,6 @@ import {
 
 const tbody = document.getElementById("escala-body");
 
-// O restante do seu código segue exatamente abaixo...
-
-const tbody = document.getElementById("escala-body");
-
 // 1. Renderiza a tabela em tempo real
 const q = query(collection(db, "escala_ativa"), orderBy("horario"));
 onSnapshot(q, (snapshot) => {
@@ -16,7 +12,6 @@ onSnapshot(q, (snapshot) => {
     snapshot.forEach((doc) => {
         const d = doc.data();
         const id = doc.id;
-        // Se status for Online, aplica a classe .ativo que você definiu no CSS
         const statusClass = d.status === "Online" ? "ativo" : "";
         
         tbody.innerHTML += `
@@ -37,7 +32,7 @@ onSnapshot(q, (snapshot) => {
     });
 });
 
-// 2. Ação do Botão Girar (Rodízio Justo)
+// 2. Ação do Botão Girar
 document.getElementById("btn-girar").addEventListener("click", async () => {
     let nomes = [
         document.getElementById("c1").value,
@@ -65,7 +60,7 @@ document.getElementById("btn-girar").addEventListener("click", async () => {
     alert("Rodízio gerado com sucesso!");
 });
 
-// 3. Função de Check-in (Alterna entre Pausa e Online)
+// 3. Função de Check-in
 window.marcarStatus = async (id, statusAtual) => {
     const novoStatus = statusAtual === "Online" ? "Pausa" : "Online";
     await updateDoc(doc(db, "escala_ativa", id), { status: novoStatus });
