@@ -1,8 +1,10 @@
 import { db } from './firebaseConfig.js';
 import { collection, onSnapshot, doc, updateDoc, query, orderBy, getDoc } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
 
+document.getElementById("data-atual").innerText = new Date().toLocaleDateString();
+
 const tbody = document.getElementById("escala-body");
-const colabs = ["Leandro", "Ivah", "Papa", "Paloma"]; // Mantenha sua lista aqui
+const colabs = ["Leandro", "Ivah", "Tarcyla", "Paloma"]; // Mantenha sua lista aqui
 
 onSnapshot(query(collection(db, "escala_ativa"), orderBy("ordem")), (snapshot) => {
     tbody.innerHTML = "";
