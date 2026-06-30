@@ -2,56 +2,95 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <title>AFinanceira | Sistema Operacional</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AFinanceira | Sistema de Escala</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="dashboard-container">
-        <!-- Grade de Escala -->
-        <div class="card">
-            <h2>Grade Horária do Turno</h2>
-            <table>
-                <thead>
-                    <tr>
-                        <th>HORÁRIO</th>
-                        <th>PIXBET</th>
-                        <th>BDS</th>
-                        <th>BETVIP</th>
-                        <th>GANHEI</th>
-                        <th>STATUS</th>
-                    </tr>
-                </thead>
-                <tbody id="escala-body">
-                    <!-- O JavaScript injetará as linhas e botões aqui -->
-                </tbody>
-            </table>
-        </div>
+        <!-- Cabeçalho com Identidade Visual -->
+        <header class="main-header">
+            <div class="logo-area">
+                <!-- Ícone do Farol representativo da marca -->
+                <svg class="lighthouse-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 2L9 4V7H15V4L12 2Z" fill="#D4AF37"/>
+                    <path d="M8 9L7 22H17L16 9H8ZM12 11C12.55 11 13 11.45 13 12C13 12.55 12.55 13 12 13C11.45 13 11 12.55 11 12C11 11.45 11.45 11 12 11Z" fill="#D4AF37"/>
+                    <path d="M2 12H6M18 12H22M4 5L7 8M20 5L17 8" stroke="#D4AF37" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+                <h1>AFinanceira</h1>
+            </div>
+            <div class="header-status">
+                <span class="status-indicator"></span> Online
+            </div>
+        </header>
 
-        <!-- Painel Administrativo -->
-        <div id="admin-panel" class="card">
-            <h3>Configurações de Escala</h3>
-            <input type="text" id="c1" placeholder="Colaborador 1">
-            <input type="text" id="c2" placeholder="Colaborador 2">
-            <input type="text" id="c3" placeholder="Colaborador 3">
-            <input type="text" id="c4" placeholder="Colaborador 4">
-            
-            <div style="margin-top:10px;">
-                <button id="btn-girar" class="btn-gold">🔄 Girar Rodízio</button>
-               <script src="script.js" defer></script>
+        <!-- Grade de Escala Ativa -->
+        <div class="card">
+            <div class="card-header">
+                <h2>Grade Horária do Turno</h2>
+            </div>
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>HORÁRIO</th>
+                            <th>PIXBET</th>
+                            <th>BDS</th>
+                            <th>BETVIP</th>
+                            <th>GANHEI</th>
+                            <th>STATUS</th>
+                        </tr>
+                    </thead>
+                    <tbody id="escala-body">
+                        <!-- Conteúdo injetado dinamicamente pelo script.js -->
+                    </tbody>
+                </table>
             </div>
         </div>
 
-        <!-- Estrutura do Flash Report -->
+        <!-- Painel de Controle Administrativo -->
+        <div id="admin-panel" class="card">
+            <div class="card-header">
+                <h3>Configurações de Gerenciamento e Rodízio</h3>
+            </div>
+            <div class="admin-grid">
+                <div class="input-group">
+                    <label>Colaborador 1</label>
+                    <input type="text" id="c1" value="Leandro" placeholder="Nome do Colaborador">
+                </div>
+                <div class="input-group">
+                    <label>Colaborador 2</label>
+                    <input type="text" id="c2" value="Ivah" placeholder="Nome do Colaborador">
+                </div>
+                <div class="input-group">
+                    <label>Colaborador 3</label>
+                    <input type="text" id="c3" value="Tarcyla" placeholder="Nome do Colaborador">
+                </div>
+                <div class="input-group">
+                    <label>Colaborador 4</label>
+                    <input type="text" id="c4" value="Paloma" placeholder="Nome do Colaborador">
+                </div>
+            </div>
+            
+            <div class="actions-area">
+                <button id="btn-girar" class="btn-gold">🔄 Gerar e Girar Rodízio</button>
+                <button id="btn-limpar" class="btn-danger">🗑️ Limpar Escala Ativa</button>
+            </div>
+        </div>
+
+        <!-- Flash Report Operacional -->
         <div class="card">
-            <h3>Estrutura do Flash Report</h3>
-            <div id="flash-area" style="background:#0f172a; padding:15px; border-radius:5px;">
+            <div class="card-header">
+                <h3>Estrutura do Flash Report</h3>
+            </div>
+            <div id="flash-area" class="flash-box">
                 <p><strong>FLASH REPORT - (MADRUGADA)</strong></p>
-                <p>Data: <span id="data-atual"></span></p>
+                <p>Data de Monitoramento: <span id="data-atual"></span></p>
             </div>
         </div>
     </div>
 
-    <!-- Módulo do Script -->
+    <!-- Carregamento Modular Obrigatório -->
     <script type="module" src="script.js"></script>
 </body>
 </html>
