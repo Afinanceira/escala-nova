@@ -1,42 +1,37 @@
 import { db } from './firebaseConfig.js';
-import { collection, onSnapshot, doc, updateDoc, setDoc } from "firebase/firestore";
+import { collection, onSnapshot, doc, setDoc } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
 
 const tbody = document.getElementById("escala-body");
 
-// 1. Escuta em tempo real
+// Renderiza a tabela em tempo real
 onSnapshot(collection(db, "escala_ativa"), (snapshot) => {
-    tbody.innerHTML = "";
+    tbody.innerHTML = ""; // Limpa a tabela antes de atualizar
     snapshot.forEach((doc) => {
         const d = doc.data();
-        // Renderiza a linha com os botões verdes
         tbody.innerHTML += `
             <tr>
-                <td>${d.horario}</td>
-                <td><button class="colaborador-btn ${d.status_p1 ? 'ativo' : ''}" onclick="fazerCheckin('p1')">${d.pixbet}</button></td>
-                <td><button class="colaborador-btn ${d.status_p2 ? 'ativo' : ''}" onclick="fazerCheckin('p2')">${d.bds}</button></td>
-                <td><button class="colaborador-btn ${d.status_p3 ? 'ativo' : ''}" onclick="fazerCheckin('p3')">${d.betvip}</button></td>
-                <td><button class="colaborador-btn ${d.status_p4 ? 'ativo' : ''}" onclick="fazerCheckin('p4')">${d.ganhei}</button></td>
-                <td>${d.discord}</td>
-                <td>${d.pausa || '-'}</td>
+                <td>23:00</td>
+                <td><button class="colaborador-btn">${d.pixbet}</button></td>
+                <td><button class="colaborador-btn">${d.bds}</button></td>
+                <td><button class="colaborador-btn">${d.betvip}</button></td>
+                <td><button class="colaborador-btn">${d.ganhei}</button></td>
+                <td>Todos</td>
+                <td>-</td>
             </tr>
         `;
     });
 });
 
-// 2. Lógica do Rodízio
+// Ação do Botão Girar
 document.getElementById("btn-girar").addEventListener("click", async () => {
-    const nomes = [document.getElementById("c1").value, document.getElementById("c2").value, 
-                   document.getElementById("c3").value, document.getElementById("c4").value];
-    const primeiro = nomes.shift(); nomes.push(primeiro);
+    const n1 = document.getElementById("c1").value;
+    const n2 = document.getElementById("c2").value;
+    const n3 = document.getElementById("c3").value;
+    const n4 = document.getElementById("c4").value;
     
+    // Atualiza o documento principal
     await setDoc(doc(db, "escala_ativa", "turno_atual"), {
-        pixbet: nomes[0], bds: nomes[1], betvip: nomes[2], ganhei: nomes[3],
-        horario: "23:00", discord: "Todos", status_p1: false, status_p2: false
+        pixbet: n1, bds: n2, betvip: n3, ganhei: n4
     });
+    alert("Escala atualizada!");
 });
-
-// 3. Função de Check-in (Global para o HTML)
-window.fazerCheckin = async (posicao) => {
-    const ref = doc(db, "escala_ativa", "turno_atual");
-    await updateDoc(ref, { [`status_${posicao}`]: true });
-};
