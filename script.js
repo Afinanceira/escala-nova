@@ -1,62 +1,57 @@
 import { db } from './firebaseConfig.js';
-import { 
-    collection, onSnapshot, doc, setDoc, updateDoc, query, orderBy, getDocs, deleteDoc 
-} from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
+import { collection, onSnapshot, doc, updateDoc, query, orderBy, getDoc } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
 
 const tbody = document.getElementById("escala-body");
+const colabs = ["Leandro", "Ivah", "Papa", "Paloma"]; // Mantenha sua lista aqui
 
-// 1. Renderiza a tabela (Ordenada por ID/Ordem de criação)
 onSnapshot(query(collection(db, "escala_ativa"), orderBy("ordem")), (snapshot) => {
     tbody.innerHTML = "";
     snapshot.forEach((doc) => {
         const d = doc.data();
+        const corStatus = d.status && d.status.startsWith("Online") ? "#28a745" : "#dc3545";
+        
         tbody.innerHTML += `
             <tr>
                 <td>${d.horario}</td>
                 <td>${d.pixbet}</td><td>${d.bds}</td><td>${d.betvip}</td><td>${d.ganhei}</td>
-                <td><button onclick="window.confirmarPresenca('${doc.id}')" class="colaborador-btn ${d.status === 'Online' ? 'ativo' : ''}">${d.status || 'Pausa'}</button></td>
+                <td>
+                    <div class="dropdown">
+                        <button class="status-btn" style="background:${corStatus}">${d.status || 'Pausa'}</button>
+                        <div class="dropdown-content">
+                            <a href="#" onclick="window.gerenciarStatus('${doc.id}', 'Online')">✅ Check-in</a>
+                            <a href="#" onclick="window.gerenciarStatus('${doc.id}', 'Retorno')">🔙 Retorno</a>
+                            ${colabs.map(n => `<a href="#" onclick="window.gerenciarStatus('${doc.id}', '${n}')">Pausa: ${n}</a>`).join('')}
+                        </div>
+                    </div>
+                </td>
             </tr>
         `;
     });
 });
 
-// 2. Limpar Escala (Novo dia)
-document.getElementById("btn-limpar").addEventListener("click", async () => {
-    if(!confirm("Tem certeza que deseja apagar toda a escala para um novo dia?")) return;
-    const snapshot = await getDocs(collection(db, "escala_ativa"));
-    snapshot.forEach(async (doc) => await deleteDoc(doc.ref));
-    alert("Escala limpa!");
-});
+window.gerenciarStatus = async (id, valor) => {
+    const docRef = doc(db, "escala_ativa", id);
+    const snap = await getDoc(docRef);
+    const d = snap.data();
 
-// 3. Botão Girar (Agora na ordem correta)
-document.getElementById("btn-girar").addEventListener("click", async () => {
-    let nomes = ["c1", "c2", "c3", "c4"].map(id => document.getElementById(id).value).filter(n => n.trim() !== "");
-    const horas = ["23:00", "00:00", "01:00", "02:00", "03:00", "04:00", "05:00", "06:00", "07:00"];
-    
-    for (let i = 0; i < horas.length; i++) {
-        let escala = {};
-        for(let j=0; j<4; j++) escala[["pixbet", "bds", "betvip", "ganhei"][j]] = nomes[(i + j) % nomes.length];
+    if (valor === "Online") {
+        await updateDoc(docRef, { status: "Online" });
+    } else if (valor === "Retorno") {
+        await updateDoc(docRef, {
+            pixbet: d.original_pixbet, bds: d.original_bds,
+            betvip: d.original_betvip, ganhei: d.original_ganhei,
+            status: "Online"
+        });
+    } else {
+        const ativos = colabs.filter(n => n !== valor);
+        let nova = {};
+        ["pixbet", "bds", "betvip", "ganhei"].forEach((c, i) => nova[c] = ativos[i % ativos.length]);
         
-        await setDoc(doc(db, "escala_ativa", `turno_${i}`), { 
-            ...escala, status: "Pausa", horario: horas[i], ordem: i 
+        await updateDoc(docRef, {
+            ...nova,
+            original_pixbet: d.pixbet, original_bds: d.bds,
+            original_betvip: d.betvip, original_ganhei: d.ganhei,
+            status: "Pausa: " + valor
         });
     }
-});
-
-// 4. Pausa com Realocação
-window.iniciarPausa = async () => {
-    const nomePausa = document.getElementById("nome-pausa").value;
-    const snapshot = await getDocs(collection(db, "escala_ativa"));
-    const todos = ["c1", "c2", "c3", "c4"].map(id => document.getElementById(id)?.value).filter(n => n && n.trim() !== "");
-    const ativos = todos.filter(n => n !== nomePausa);
-
-    snapshot.forEach(async (doc) => {
-        if (Object.values(doc.data()).includes(nomePausa)) {
-            let novaEscala = {};
-            ["pixbet", "bds", "betvip", "ganhei"].forEach((c, i) => novaEscala[c] = ativos[i % ativos.length]);
-            await updateDoc(doc.ref, { ...novaEscala, status: "Pausa (" + nomePausa + ")" });
-        }
-    });
 };
-
-window.confirmarPresenca = async (id) => await updateDoc(doc(db, "escala_ativa", id), { status: "Online" });
