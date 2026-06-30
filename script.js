@@ -1,7 +1,11 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
-import { getFirestore } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
+import { db } from './firebaseConfig.js'; 
+import { 
     collection, onSnapshot, doc, setDoc, updateDoc, query, orderBy 
 } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
+
+const tbody = document.getElementById("escala-body");
+
+// O restante do seu código segue exatamente abaixo...
 
 const tbody = document.getElementById("escala-body");
 
