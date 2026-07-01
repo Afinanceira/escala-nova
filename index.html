@@ -8,10 +8,8 @@
 </head>
 <body>
     <div class="dashboard-container">
-        <!-- Cabeçalho com Identidade Visual -->
         <header class="main-header">
             <div class="logo-area">
-                <!-- Ícone do Farol representativo da marca -->
                 <svg class="lighthouse-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path d="M12 2L9 4V7H15V4L12 2Z" fill="#D4AF37"/>
                     <path d="M8 9L7 22H17L16 9H8ZM12 11C12.55 11 13 11.45 13 12C13 12.55 12.55 13 12 13C11.45 13 11 12.55 11 12C11 11.45 11.45 11 12 11Z" fill="#D4AF37"/>
@@ -24,7 +22,6 @@
             </div>
         </header>
 
-        <!-- Grade de Escala Ativa -->
         <div class="card">
             <div class="card-header">
                 <h2>Grade Horária do Turno</h2>
@@ -42,13 +39,11 @@
                         </tr>
                     </thead>
                     <tbody id="escala-body">
-                        <!-- Conteúdo injetado dinamicamente pelo script.js -->
-                    </tbody>
+                        </tbody>
                 </table>
             </div>
         </div>
 
-        <!-- Painel de Controle Administrativo -->
         <div id="admin-panel" class="card">
             <div class="card-header">
                 <h3>Configurações de Gerenciamento e Rodízio</h3>
@@ -56,19 +51,19 @@
             <div class="admin-grid">
                 <div class="input-group">
                     <label>Colaborador 1</label>
-                    <input type="text" id="c1" value="Leandro" placeholder="Nome do Colaborador">
+                    <input type="text" id="c1" value="Leandro" placeholder="Nome">
                 </div>
                 <div class="input-group">
                     <label>Colaborador 2</label>
-                    <input type="text" id="c2" value="Ivah" placeholder="Nome do Colaborador">
+                    <input type="text" id="c2" value="Ivah" placeholder="Nome">
                 </div>
                 <div class="input-group">
                     <label>Colaborador 3</label>
-                    <input type="text" id="c3" value="Tarcyla" placeholder="Nome do Colaborador">
+                    <input type="text" id="c3" value="Tarcyla" placeholder="Nome">
                 </div>
                 <div class="input-group">
                     <label>Colaborador 4</label>
-                    <input type="text" id="c4" value="Paloma" placeholder="Nome do Colaborador">
+                    <input type="text" id="c4" value="Paloma" placeholder="Nome">
                 </div>
             </div>
             
@@ -78,19 +73,17 @@
             </div>
         </div>
 
-        <!-- Flash Report Operacional -->
         <div class="card">
             <div class="card-header">
-                <h3>Estrutura do Flash Report</h3>
+                <h3>Flash Report - Ocorrências do Turno</h3>
             </div>
-            <div id="flash-area" class="flash-box">
-                <p><strong>FLASH REPORT - (MADRUGADA)</strong></p>
-                <p>Data de Monitoramento: <span id="data-atual"></span></p>
+            <div class="flash-box">
+                <p>Data: <span id="data-atual"></span></p>
+                <textarea id="flash-text" placeholder="Digite aqui as ocorrências do turno... (Salva em tempo real)" rows="6" style="width: 100%; background: #0b1320; color: #fff; border: 1px solid #2c3e50; padding: 10px; border-radius: 4px;"></textarea>
             </div>
         </div>
     </div>
 
-    <!-- Carregamento Modular Obrigatório -->
     <script type="module" src="script.js"></script>
 </body>
 </html>
