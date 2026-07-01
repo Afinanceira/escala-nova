@@ -47,26 +47,40 @@ window.checkin = async (id, col) => {
     await updateDoc(docRef, { [`checkin_${col}`]: d[`checkin_${col}`] === 'OK' ? 'Pendente' : 'OK' });
 };
 
-// Gerenciamento de Status (Pausa e Redistribuição)
+// Gerenciamento de Status (Pausa aplicada APENAS ao horário clicado)
 window.gerenciarStatus = async (id, valor) => {
     const docRef = doc(db, "escala_ativa", id);
     const d = (await getDoc(docRef)).data();
     const original = [d.original_pixbet, d.original_bds, d.original_betvip, d.original_ganhei];
     
-    if (valor === "Online") await updateDoc(docRef, { status: "Online" });
-    else if (valor === "Retorno") await updateDoc(docRef, { pixbet: d.original_pixbet, bds: d.original_bds, betvip: d.original_betvip, ganhei: d.original_ganhei, status: "Online" });
-    else {
+    if (valor === "Online") {
+        await updateDoc(docRef, { status: "Online" });
+    } else if (valor === "Retorno") {
+        await updateDoc(docRef, { 
+            pixbet: d.original_pixbet, 
+            bds: d.original_bds, 
+            betvip: d.original_betvip, 
+            ganhei: d.original_ganhei, 
+            status: "Online" 
+        });
+    } else {
+        // Filtra quem está ativo apenas para este doc (horário)
         const ativos = original.filter(n => n !== valor && n && n.trim() !== "");
         const p = ativos.length;
         if (p === 0) return;
+
+        // Redistribui os ativos apenas neste horário específico
         await updateDoc(docRef, { 
-            pixbet: ativos[0 % p], bds: ativos[1 % p], betvip: ativos[2 % p], ganhei: ativos[3 % p], 
+            pixbet: ativos[0 % p], 
+            bds: ativos[1 % p], 
+            betvip: ativos[2 % p], 
+            ganhei: ativos[3 % p], 
             status: "Pausa: " + valor 
         });
     }
 };
 
-// Geração de Rodízio (Distribuição Justa)
+// Geração de Rodízio
 document.getElementById("btn-girar").addEventListener("click", async () => {
     const inputs = [document.getElementById("c1").value, document.getElementById("c2").value, document.getElementById("c3").value, document.getElementById("c4").value];
     const colabs = inputs.filter(n => n && n.trim() !== "");
@@ -85,7 +99,7 @@ document.getElementById("btn-girar").addEventListener("click", async () => {
             status: "Online" 
         });
     }
-    alert("Escala gerada com distribuição ajustada!");
+    alert("Escala gerada com " + p + " colaboradores!");
 });
 
 // Limpar Escala
