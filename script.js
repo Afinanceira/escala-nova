@@ -26,17 +26,15 @@ onSnapshot(query(collection(db, "escala_ativa"), orderBy("ordem")), (snapshot) =
         
         colunas.forEach(col => {
             const nome = d[col];
-            // Verifica no banco se o check-in desta coluna específica está OK
             const statusCheck = d[`checkin_${col}`] === 'OK' ? '#28a745' : '#1a2533'; 
             linhaHTML += `<td>
-                <button onclick="window.checkin('${docSnap.id}', '${col}')" 
-                        style="width: 100%; border:none; padding: 6px; color:white; cursor:pointer; background:${statusCheck}; border-radius:4px;">
+                <button class="btn-nome-checkin" onclick="window.checkin('${docSnap.id}', '${col}')" 
+                        style="background:${statusCheck};">
                     ${nome}
                 </button>
             </td>`;
         });
 
-        // Dropdown de Pausa Original
         linhaHTML += `<td>
             <div class="dropdown">
                 <button class="status-btn" style="background:${corStatus}">${d.status || 'Online'}</button>
@@ -51,7 +49,7 @@ onSnapshot(query(collection(db, "escala_ativa"), orderBy("ordem")), (snapshot) =
     });
 });
 
-// 3. Função de Check-in Individual (Alterna OK/Pendente)
+// 3. Função de Check-in Individual
 window.checkin = async (id, col) => {
     const docRef = doc(db, "escala_ativa", id);
     const snap = await getDoc(docRef);
