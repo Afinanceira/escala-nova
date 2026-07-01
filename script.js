@@ -1,48 +1,34 @@
 import { db } from './firebaseConfig.js';
 import { collection, onSnapshot, doc, updateDoc, query, orderBy, getDoc, getDocs, deleteDoc, setDoc } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
 
-// Inicialização de metadados da interface
+// Inicialização
 document.getElementById("data-atual").innerText = new Date().toLocaleDateString('pt-BR');
-
 const tbody = document.getElementById("escala-body");
 
-// Monitoramento em tempo real do banco de dados para renderização da tabela
+// Monitoramento em tempo real
 onSnapshot(query(collection(db, "escala_ativa"), orderBy("ordem")), (snapshot) => {
     tbody.innerHTML = "";
-    
     if (snapshot.empty) {
-        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:#888;">Nenhuma escala ativa encontrada. Preencha os colaboradores abaixo e clique em Gerar Rodízio.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:#888;">Nenhuma escala encontrada. Preencha os nomes e clique em Gerar Rodízio.</td></tr>`;
         return;
     }
 
     snapshot.forEach((docSnap) => {
         const d = docSnap.data();
         const corStatus = d.status && d.status.startsWith("Online") ? "#28a745" : "#dc3545";
-        
-        // Extração dos colaboradores atuais desta linha para popular dinamicamente as pausas válidas
-        const colaboradoresLinha = [
-            d.original_pixbet || d.pixbet,
-            d.original_bds || d.bds,
-            d.original_betvip || d.betvip,
-            d.original_ganhei || d.ganhei
-        ].filter((value, index, self) => self.indexOf(value) === index && value);
+        const colabsLinha = [d.original_pixbet || d.pixbet, d.original_bds || d.bds, d.original_betvip || d.betvip, d.original_ganhei || d.ganhei].filter((v, i, s) => s.indexOf(v) === i && v);
 
         tbody.innerHTML += `
             <tr>
                 <td class="text-bold">${d.horario}</td>
-                <td>${d.pixbet}</td>
-                <td>${d.bds}</td>
-                <td>${d.betvip}</td>
-                <td>${d.ganhei}</td>
+                <td>${d.pixbet}</td><td>${d.bds}</td><td>${d.betvip}</td><td>${d.ganhei}</td>
                 <td>
                     <div class="dropdown">
                         <button class="status-btn" style="background:${corStatus}">${d.status || 'Pausa'}</button>
                         <div class="dropdown-content">
                             <a href="#" onclick="event.preventDefault(); window.gerenciarStatus('${docSnap.id}', 'Online')">✅ Check-in</a>
                             <a href="#" onclick="event.preventDefault(); window.gerenciarStatus('${docSnap.id}', 'Retorno')">🔙 Retorno</a>
-                            ${colaboradoresLinha.map(nome => `
-                                <a href="#" onclick="event.preventDefault(); window.gerenciarStatus('${docSnap.id}', '${nome}')">⏸️ Pausa: ${nome}</a>
-                            `).join('')}
+                            ${colabsLinha.map(n => `<a href="#" onclick="event.preventDefault(); window.gerenciarStatus('${docSnap.id}', '${n}')">⏸️ Pausa: ${n}</a>`).join('')}
                         </div>
                     </div>
                 </td>
@@ -51,129 +37,52 @@ onSnapshot(query(collection(db, "escala_ativa"), orderBy("ordem")), (snapshot) =
     });
 });
 
-// Função global para gerenciamento de pausas seletivas e redistribuição inteligente
+// Gestão de Status
 window.gerenciarStatus = async (id, valor) => {
     const docRef = doc(db, "escala_ativa", id);
     const snap = await getDoc(docRef);
-    
     if (!snap.exists()) return;
     const d = snap.data();
 
-    // Preserva os dados originais caso ainda não tenham sido salvos em um estado anterior de pausa
-    const origPixbet = d.original_pixbet || d.pixbet;
-    const origBds = d.original_bds || d.bds;
-    const origBetvip = d.original_betvip || d.betvip;
-    const origGanhei = d.original_ganhei || d.ganhei;
+    const orig = { p: d.original_pixbet || d.pixbet, b: d.original_bds || d.bds, v: d.original_betvip || d.betvip, g: d.original_ganhei || d.ganhei };
 
     if (valor === "Online") {
         await updateDoc(docRef, { status: "Online" });
-    } 
-    else if (valor === "Retorno") {
-        // Restaura a escala original do turno selecionado
-        await updateDoc(docRef, {
-            pixbet: origPixbet,
-            bds: origBds,
-            betvip: origBetvip,
-            ganhei: origGanhei,
-            status: "Online"
-        });
-    } 
-    else {
-        // Coleta os colaboradores definidos originalmente para a linha e remove quem entrou de pausa
-        const listaOriginal = [origPixbet, origBds, origBetvip, origGanhei];
-        const ativos = listaOriginal.filter(nome => nome !== valor);
-        
-        // Aplica o cálculo matemático distribuindo as casas de forma justa apenas entre quem restou online
-        let novaAlocacao = {};
-        ["pixbet", "bds", "betvip", "ganhei"].forEach((casa, index) => {
-            novaAlocacao[casa] = ativos[index % ativos.length];
-        });
-        
-        await updateDoc(docRef, {
-            ...novaAlocacao,
-            original_pixbet: origPixbet,
-            original_bds: origBds,
-            original_betvip: origBetvip,
-            original_ganhei: origGanhei,
-            status: "Pausa: " + valor
+    } else if (valor === "Retorno") {
+        await updateDoc(docRef, { pixbet: orig.p, bds: orig.b, betvip: orig.v, ganhei: orig.g, status: "Online" });
+    } else {
+        const ativos = [orig.p, orig.b, orig.v, orig.g].filter(n => n !== valor);
+        await updateDoc(docRef, { 
+            pixbet: ativos[0], bds: ativos[1 % ativos.length], betvip: ativos[2 % ativos.length], ganhei: ativos[3 % ativos.length],
+            original_pixbet: orig.p, original_bds: orig.b, original_betvip: orig.v, original_ganhei: orig.g, status: "Pausa: " + valor 
         });
     }
 };
 
-// Lógica de Geração Automatizada do Rodízio de Turno
+// Gerar Rodízio
 const btnGirar = document.getElementById("btn-girar");
-
 if (btnGirar) {
     btnGirar.addEventListener("click", async () => {
-        const n1 = document.getElementById("c1").value.trim() || "Leandro";
-        const n2 = document.getElementById("c2").value.trim() || "Ivah";
-        const n3 = document.getElementById("c3").value.trim() || "Tarcyla";
-        const n4 = document.getElementById("c4").value.trim() || "Paloma";
-        
-        const colaboradores = [n1, n2, n3, n4];
+        const colaboradores = [document.getElementById("c1").value || "Leandro", document.getElementById("c2").value || "Ivah", document.getElementById("c3").value || "Tarcyla", document.getElementById("c4").value || "Paloma"];
         const horarios = ["00:00", "01:00", "02:00", "03:00", "04:00", "05:00", "06:00"];
         
-        // Limpeza prévia para evitar conflitos de índices antigos
-        const querySnapshot = await getDocs(collection(db, "escala_ativa"));
-        for (const docSnap of querySnapshot.docs) {
-            await deleteDoc(doc(db, "escala_ativa", docSnap.id));
-        }
+        const snaps = await getDocs(collection(db, "escala_ativa"));
+        for (const s of snaps.docs) await deleteDoc(doc(db, "escala_ativa", s.id));
         
-        // Injeção estruturada com matriz rotativa de horários e casas de apostas
         for (let i = 0; i < horarios.length; i++) {
-            const p1 = colaboradores[(i + 0) % 4];
-            const p2 = colaboradores[(i + 1) % 4];
-            const p3 = colaboradores[(i + 2) % 4];
-            const p4 = colaboradores[(i + 3) % 4];
-            
             await setDoc(doc(db, "escala_ativa", `turno_${i}`), {
-                ordem: i,
-                horario: horarios[i],
-                pixbet: p1,
-                bds: p2,
-                betvip: p3,
-                ganhei: p4,
-                original_pixbet: p1,
-                original_bds: p2,
-                original_betvip: p3,
-                original_ganhei: p4,
-                status: "Online"
+                ordem: i, horario: horarios[i], pixbet: colaboradores[i % 4], bds: colaboradores[(i+1) % 4], betvip: colaboradores[(i+2) % 4], ganhei: colaboradores[(i+3) % 4],
+                original_pixbet: colaboradores[i % 4], original_bds: colaboradores[(i+1) % 4], original_betvip: colaboradores[(i+2) % 4], original_ganhei: colaboradores[(i+3) % 4], status: "Online"
             });
         }
-        alert("Escala gerada com sucesso!");
+        alert("Escala gerada!");
     });
 }
-    }
-    
-    // Injeção estruturada com matriz rotativa de horários e casas de apostas
-    for (let i = 0; i < horarios.length; i++) {
-        const p1 = colaboradores[(i + 0) % 4];
-        const p2 = colaboradores[(i + 1) % 4];
-        const p3 = colaboradores[(i + 2) % 4];
-        const p4 = colaboradores[(i + 3) % 4];
-        
-        await setDoc(doc(db, "escala_ativa", `turno_${i}`), {
-            ordem: i,
-            horario: horarios[i],
-            pixbet: p1,
-            bds: p2,
-            betvip: p3,
-            ganhei: p4,
-            original_pixbet: p1,
-            original_bds: p2,
-            original_betvip: p3,
-            original_ganhei: p4,
-            status: "Online"
-        });
-    }
-});
 
-// Ação para apagar a escala ativa operacional
+// Limpar
 document.getElementById("btn-limpar").addEventListener("click", async () => {
-    if (confirm("Deseja redefinir e apagar toda a escala do turno atual?")) {
-        const querySnapshot = await getDocs(collection(db, "escala_ativa"));
-        for (const docSnap of querySnapshot.docs) {
-            await deleteDoc(doc(db, "escala_ativa", docSnap.id));
-        }
+    if (confirm("Apagar tudo?")) {
+        const snaps = await getDocs(collection(db, "escala_ativa"));
+        for (const s of snaps.docs) await deleteDoc(doc(db, "escala_ativa", s.id));
     }
 });
