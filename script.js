@@ -18,7 +18,7 @@ onSnapshot(query(collection(db, "escala_ativa"), orderBy("ordem")), (snapshot) =
     snapshot.forEach((docSnap) => {
         const d = docSnap.data();
         const colunas = ['pixbet', 'bds', 'betvip', 'ganhei'];
-        const colabsLinha = [d.original_pixbet, d.original_bds, d.original_betvip, d.original_ganhei].filter(n => n && n.trim() !== "");
+        const colabsLinha = [...new Set([d.original_pixbet, d.original_bds, d.original_betvip, d.original_ganhei].filter(n => n && n.trim() !== ""))];
         
         let linhaHTML = `<tr><td class="text-bold">${d.horario}</td>`;
         colunas.forEach(col => {
@@ -47,6 +47,7 @@ window.checkin = async (id, col) => {
     await updateDoc(docRef, { [`checkin_${col}`]: d[`checkin_${col}`] === 'OK' ? 'Pendente' : 'OK' });
 };
 
+// Gerenciamento de Status (Pausa e Redistribuição)
 window.gerenciarStatus = async (id, valor) => {
     const docRef = doc(db, "escala_ativa", id);
     const d = (await getDoc(docRef)).data();
@@ -56,35 +57,40 @@ window.gerenciarStatus = async (id, valor) => {
     else if (valor === "Retorno") await updateDoc(docRef, { pixbet: d.original_pixbet, bds: d.original_bds, betvip: d.original_betvip, ganhei: d.original_ganhei, status: "Online" });
     else {
         const ativos = original.filter(n => n !== valor && n && n.trim() !== "");
+        const p = ativos.length;
+        if (p === 0) return;
         await updateDoc(docRef, { 
-            pixbet: ativos[0] || "", bds: ativos[1] || "", betvip: ativos[2] || "", ganhei: ativos[3] || "", 
+            pixbet: ativos[0 % p], bds: ativos[1 % p], betvip: ativos[2 % p], ganhei: ativos[3 % p], 
             status: "Pausa: " + valor 
         });
     }
 };
 
-// Geração de Rodízio (Considera 2, 3 ou 4 colaboradores)
+// Geração de Rodízio (Distribuição Justa)
 document.getElementById("btn-girar").addEventListener("click", async () => {
     const inputs = [document.getElementById("c1").value, document.getElementById("c2").value, document.getElementById("c3").value, document.getElementById("c4").value];
     const colabs = inputs.filter(n => n && n.trim() !== "");
+    const p = colabs.length;
     
+    if (p === 0) { alert("Adicione pelo menos um colaborador!"); return; }
+
     const snaps = await getDocs(collection(db, "escala_ativa"));
     for (const s of snaps.docs) await deleteDoc(doc(db, "escala_ativa", s.id));
     
     for (let i = 0; i < 7; i++) {
-        const p = colabs.length;
         await setDoc(doc(db, "escala_ativa", `turno_${i}`), { 
             ordem: i, horario: `${i.toString().padStart(2, '0')}:00`, 
-            pixbet: colabs[i % p] || "", bds: colabs[(i+1) % p] || "", betvip: colabs[(i+2) % p] || "", ganhei: colabs[(i+3) % p] || "", 
-            original_pixbet: colabs[i % p] || "", original_bds: colabs[(i+1) % p] || "", original_betvip: colabs[(i+2) % p] || "", original_ganhei: colabs[(i+3) % p] || "", 
+            pixbet: colabs[i % p], bds: colabs[(i+1) % p], betvip: colabs[(i+2) % p], ganhei: colabs[(i+3) % p], 
+            original_pixbet: colabs[i % p], original_bds: colabs[(i+1) % p], original_betvip: colabs[(i+2) % p], original_ganhei: colabs[(i+3) % p], 
             status: "Online" 
         });
     }
-    alert("Escala gerada para " + colabs.length + " colaboradores!");
+    alert("Escala gerada com distribuição ajustada!");
 });
 
+// Limpar Escala
 document.getElementById("btn-limpar").addEventListener("click", async () => {
-    if (confirm("Deseja realmente apagar toda a escala?")) {
+    if (confirm("Deseja realmente apagar toda a escala atual?")) {
         const snaps = await getDocs(collection(db, "escala_ativa"));
         for (const s of snaps.docs) await deleteDoc(doc(db, "escala_ativa", s.id));
         alert("Escala limpa!");
