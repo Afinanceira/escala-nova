@@ -9,18 +9,18 @@ const flashRef = doc(db, "config", "flash_report");
 onSnapshot(flashRef, (doc) => {
     if (doc.exists()) flashText.value = doc.data().conteudo || "";
 });
-
 flashText.addEventListener("input", async (e) => {
     await setDoc(flashRef, { conteudo: e.target.value });
 });
 
-// 2. Monitoramento da Escala e Renderização com Botões de Check-in nos Nomes
+// 2. Monitoramento da Escala com Check-in (Botões) E Pausa (Dropdown)
 onSnapshot(query(collection(db, "escala_ativa"), orderBy("ordem")), (snapshot) => {
     tbody.innerHTML = "";
     snapshot.forEach((docSnap) => {
         const d = docSnap.data();
         const colunas = ['pixbet', 'bds', 'betvip', 'ganhei'];
         const corStatus = d.status && d.status.startsWith("Online") ? "#28a745" : "#dc3545";
+        const colabsLinha = [d.original_pixbet || d.pixbet, d.original_bds || d.bds, d.original_betvip || d.betvip, d.original_ganhei || d.ganhei].filter((v, i, s) => s.indexOf(v) === i && v);
         
         let linhaHTML = `<tr><td class="text-bold">${d.horario}</td>`;
         
@@ -35,13 +35,14 @@ onSnapshot(query(collection(db, "escala_ativa"), orderBy("ordem")), (snapshot) =
             </td>`;
         });
 
+        // Dropdown de Pausa (Redistribuição Automática)
         linhaHTML += `<td>
             <div class="dropdown">
                 <button class="status-btn" style="background:${corStatus}">${d.status || 'Online'}</button>
                 <div class="dropdown-content">
-                    <a href="#" onclick="event.preventDefault(); window.gerenciarStatus('${docSnap.id}', 'Online')">✅ Check-in</a>
+                    <a href="#" onclick="event.preventDefault(); window.gerenciarStatus('${docSnap.id}', 'Online')">✅ Check-in Geral</a>
                     <a href="#" onclick="event.preventDefault(); window.gerenciarStatus('${docSnap.id}', 'Retorno')">🔙 Retorno</a>
-                    <a href="#" onclick="event.preventDefault(); window.gerenciarStatus('${docSnap.id}', 'Pausa')">⏸️ Pausa</a>
+                    ${colabsLinha.map(n => `<a href="#" onclick="event.preventDefault(); window.gerenciarStatus('${docSnap.id}', '${n}')">⏸️ Pausa: ${n}</a>`).join('')}
                 </div>
             </div>
         </td></tr>`;
@@ -49,7 +50,7 @@ onSnapshot(query(collection(db, "escala_ativa"), orderBy("ordem")), (snapshot) =
     });
 });
 
-// 3. Função de Check-in Individual
+// 3. Função de Check-in individual (Click no Nome)
 window.checkin = async (id, col) => {
     const docRef = doc(db, "escala_ativa", id);
     const snap = await getDoc(docRef);
@@ -57,7 +58,7 @@ window.checkin = async (id, col) => {
     await updateDoc(docRef, { [`checkin_${col}`]: atual === 'OK' ? 'Pendente' : 'OK' });
 };
 
-// 4. Gestão de Status de Pausa
+// 4. Função de Pausa (Redistribui os nomes na linha)
 window.gerenciarStatus = async (id, valor) => {
     const docRef = doc(db, "escala_ativa", id);
     const snap = await getDoc(docRef);
@@ -65,13 +66,15 @@ window.gerenciarStatus = async (id, valor) => {
     const d = snap.data();
     const orig = { p: d.original_pixbet || d.pixbet, b: d.original_bds || d.bds, v: d.original_betvip || d.betvip, g: d.original_ganhei || d.ganhei };
 
-    if (valor === "Online") await updateDoc(docRef, { status: "Online" });
-    else if (valor === "Retorno") await updateDoc(docRef, { pixbet: orig.p, bds: orig.b, betvip: orig.v, ganhei: orig.g, status: "Online" });
-    else {
-        const ativos = [orig.p, orig.b, orig.v, orig.g].filter(n => n !== "Pausa");
+    if (valor === "Online") {
+        await updateDoc(docRef, { status: "Online" });
+    } else if (valor === "Retorno") {
+        await updateDoc(docRef, { pixbet: orig.p, bds: orig.b, betvip: orig.v, ganhei: orig.g, status: "Online" });
+    } else {
+        const ativos = [orig.p, orig.b, orig.v, orig.g].filter(n => n !== valor);
         await updateDoc(docRef, { 
             pixbet: ativos[0], bds: ativos[1 % ativos.length], betvip: ativos[2 % ativos.length], ganhei: ativos[3 % ativos.length],
-            status: "Pausa" 
+            status: "Pausa: " + valor 
         });
     }
 };
@@ -92,6 +95,6 @@ if (btnGirar) {
                 status: "Online"
             });
         }
-        alert("Escala gerada!");
+        alert("Escala gerada com sucesso!");
     });
 }
