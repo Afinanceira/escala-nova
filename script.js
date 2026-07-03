@@ -64,12 +64,10 @@ window.gerenciarStatus = async (id, valor) => {
             status: "Online" 
         });
     } else {
-        // Filtra quem está ativo apenas para este doc (horário)
         const ativos = original.filter(n => n !== valor && n && n.trim() !== "");
         const p = ativos.length;
         if (p === 0) return;
 
-        // Redistribui os ativos apenas neste horário específico
         await updateDoc(docRef, { 
             pixbet: ativos[0 % p], 
             bds: ativos[1 % p], 
@@ -80,7 +78,7 @@ window.gerenciarStatus = async (id, valor) => {
     }
 };
 
-// Geração de Rodízio
+// Geração de Rodízio (Turno 23:00 - 07:00)
 document.getElementById("btn-girar").addEventListener("click", async () => {
     const inputs = [document.getElementById("c1").value, document.getElementById("c2").value, document.getElementById("c3").value, document.getElementById("c4").value];
     const colabs = inputs.filter(n => n && n.trim() !== "");
@@ -91,15 +89,26 @@ document.getElementById("btn-girar").addEventListener("click", async () => {
     const snaps = await getDocs(collection(db, "escala_ativa"));
     for (const s of snaps.docs) await deleteDoc(doc(db, "escala_ativa", s.id));
     
-    for (let i = 0; i < 7; i++) {
+    // Loop de 8 horas: 23, 00, 01, 02, 03, 04, 05, 06
+    for (let i = 0; i < 8; i++) {
+        let hora = (23 + i) % 24;
+        let horarioFormatado = `${hora.toString().padStart(2, '0')}:00`;
+        
         await setDoc(doc(db, "escala_ativa", `turno_${i}`), { 
-            ordem: i, horario: `${i.toString().padStart(2, '0')}:00`, 
-            pixbet: colabs[i % p], bds: colabs[(i+1) % p], betvip: colabs[(i+2) % p], ganhei: colabs[(i+3) % p], 
-            original_pixbet: colabs[i % p], original_bds: colabs[(i+1) % p], original_betvip: colabs[(i+2) % p], original_ganhei: colabs[(i+3) % p], 
+            ordem: i, 
+            horario: horarioFormatado, 
+            pixbet: colabs[i % p], 
+            bds: colabs[(i+1) % p], 
+            betvip: colabs[(i+2) % p], 
+            ganhei: colabs[(i+3) % p], 
+            original_pixbet: colabs[i % p], 
+            original_bds: colabs[(i+1) % p], 
+            original_betvip: colabs[(i+2) % p], 
+            original_ganhei: colabs[(i+3) % p], 
             status: "Online" 
         });
     }
-    alert("Escala gerada com " + p + " colaboradores!");
+    alert("Escala gerada para o turno 23:00 - 07:00!");
 });
 
 // Limpar Escala
