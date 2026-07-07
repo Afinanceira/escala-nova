@@ -47,6 +47,7 @@ window.checkin = async (id, col) => {
     await updateDoc(docRef, { [`checkin_${col}`]: d[`checkin_${col}`] === 'OK' ? 'Pendente' : 'OK' });
 };
 
+// Gerenciamento de Status com divisão forçada 2x2 para 2 colaboradores
 window.gerenciarStatus = async (id, valor) => {
     const docRef = doc(db, "escala_ativa", id);
     const d = (await getDoc(docRef)).data();
@@ -55,25 +56,38 @@ window.gerenciarStatus = async (id, valor) => {
     if (valor === "Online") {
         await updateDoc(docRef, { status: "Online" });
     } else if (valor === "Retorno") {
-        await updateDoc(docRef, { pixbet: d.original_pixbet, bds: d.original_bds, betvip: d.original_betvip, ganhei: d.original_ganhei, status: "Online" });
+        await updateDoc(docRef, { 
+            pixbet: d.original_pixbet, bds: d.original_bds, betvip: d.original_betvip, ganhei: d.original_ganhei, 
+            status: "Online" 
+        });
     } else {
-        const ativos = original.filter(n => n !== valor && n && n.trim() !== "");
+        const ativos = [...new Set(original.filter(n => n !== valor && n && n.trim() !== ""))];
         const p = ativos.length;
         if (p === 0) return;
-        let redistribuicao = (p === 2) ? { pixbet: ativos[0], bds: ativos[0], betvip: ativos[1], ganhei: ativos[1] } 
-                                       : { pixbet: ativos[0 % p], bds: ativos[1 % p], betvip: ativos[2 % p], ganhei: ativos[3 % p] };
-        await updateDoc(docRef, { ...redistribuicao, status: "Pausa: " + valor });
+
+        let novaEscala = {};
+        if (p === 1) {
+            novaEscala = { pixbet: ativos[0], bds: ativos[0], betvip: ativos[0], ganhei: ativos[0] };
+        } else if (p === 2) {
+            // AQUI ESTÁ A CORREÇÃO: Força 2 casas para cada, sem exceção
+            novaEscala = { pixbet: ativos[0], bds: ativos[0], betvip: ativos[1], ganhei: ativos[1] };
+        } else {
+            // Rotação normal para 3 ou 4
+            novaEscala = { 
+                pixbet: ativos[0 % p], bds: ativos[1 % p], betvip: ativos[2 % p], ganhei: ativos[3 % p] 
+            };
+        }
+        await updateDoc(docRef, { ...novaEscala, status: "Pausa: " + valor });
     }
 };
 
-// Geração com Verificação de Data
+// Geração com trava de data
 document.getElementById("btn-girar").addEventListener("click", async () => {
     const dataHoje = new Date().toLocaleDateString('pt-BR');
     const logRef = doc(db, "config", "sorteio_log");
-    const logSnap = await getDoc(logRef);
+    const logSnap = await getFirestoreDoc(logRef);
     const dataUltimoSorteio = logSnap.exists() ? logSnap.data().data : "";
 
-    // Se já houve sorteio hoje, exige senha
     if (dataUltimoSorteio === dataHoje) {
         const senhaDigitada = prompt("Sorteio já realizado hoje. Digite a senha de administrador para um novo:");
         if (senhaDigitada !== SENHA_ADMIN) {
@@ -102,7 +116,6 @@ document.getElementById("btn-girar").addEventListener("click", async () => {
         });
     }
 
-    // Registra a data no log
     await setDoc(logRef, { data: dataHoje });
     alert("Escala gerada com sucesso!");
 });
