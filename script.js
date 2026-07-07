@@ -1,6 +1,10 @@
 import { db } from './firebaseConfig.js';
 import { collection, onSnapshot, doc, updateDoc, getDoc, setDoc, query, orderBy, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
 
+// Configurações Administrativas
+const SENHA_ADMIN = "1234"; // Defina sua senha aqui
+let sorteioRealizado = false;
+
 // Inicialização de Data
 document.getElementById("data-atual").innerText = new Date().toLocaleDateString('pt-BR');
 
@@ -47,7 +51,7 @@ window.checkin = async (id, col) => {
     await updateDoc(docRef, { [`checkin_${col}`]: d[`checkin_${col}`] === 'OK' ? 'Pendente' : 'OK' });
 };
 
-// Gerenciamento de Status (Pausa aplicada APENAS ao horário clicado)
+// Gerenciamento de Status com redistribuição 2x2
 window.gerenciarStatus = async (id, valor) => {
     const docRef = doc(db, "escala_ativa", id);
     const d = (await getDoc(docRef)).data();
@@ -57,10 +61,7 @@ window.gerenciarStatus = async (id, valor) => {
         await updateDoc(docRef, { status: "Online" });
     } else if (valor === "Retorno") {
         await updateDoc(docRef, { 
-            pixbet: d.original_pixbet, 
-            bds: d.original_bds, 
-            betvip: d.original_betvip, 
-            ganhei: d.original_ganhei, 
+            pixbet: d.original_pixbet, bds: d.original_bds, betvip: d.original_betvip, ganhei: d.original_ganhei, 
             status: "Online" 
         });
     } else {
@@ -68,18 +69,24 @@ window.gerenciarStatus = async (id, valor) => {
         const p = ativos.length;
         if (p === 0) return;
 
-        await updateDoc(docRef, { 
-            pixbet: ativos[0 % p], 
-            bds: ativos[1 % p], 
-            betvip: ativos[2 % p], 
-            ganhei: ativos[3 % p], 
-            status: "Pausa: " + valor 
-        });
+        let redistribuicao = (p === 2) 
+            ? { pixbet: ativos[0], bds: ativos[0], betvip: ativos[1], ganhei: ativos[1] }
+            : { pixbet: ativos[0 % p], bds: ativos[1 % p], betvip: ativos[2 % p], ganhei: ativos[3 % p] };
+        
+        await updateDoc(docRef, { ...redistribuicao, status: "Pausa: " + valor });
     }
 };
 
-// Geração de Rodízio (Turno 23:00 - 07:00)
+// Geração de Rodízio com Senha de Administrador
 document.getElementById("btn-girar").addEventListener("click", async () => {
+    if (sorteioRealizado) {
+        const senhaDigitada = prompt("Sorteio já realizado hoje. Digite a senha de administrador:");
+        if (senhaDigitada !== SENHA_ADMIN) {
+            alert("Acesso negado.");
+            return;
+        }
+    }
+
     const inputs = [document.getElementById("c1").value, document.getElementById("c2").value, document.getElementById("c3").value, document.getElementById("c4").value];
     const colabs = inputs.filter(n => n && n.trim() !== "");
     const p = colabs.length;
@@ -89,25 +96,20 @@ document.getElementById("btn-girar").addEventListener("click", async () => {
     const snaps = await getDocs(collection(db, "escala_ativa"));
     for (const s of snaps.docs) await deleteDoc(doc(db, "escala_ativa", s.id));
     
-    // Loop de 8 horas: 23, 00, 01, 02, 03, 04, 05, 06
+    // Turno 23:00 - 07:00
     for (let i = 0; i < 8; i++) {
         let hora = (23 + i) % 24;
         let horarioFormatado = `${hora.toString().padStart(2, '0')}:00`;
         
         await setDoc(doc(db, "escala_ativa", `turno_${i}`), { 
-            ordem: i, 
-            horario: horarioFormatado, 
-            pixbet: colabs[i % p], 
-            bds: colabs[(i+1) % p], 
-            betvip: colabs[(i+2) % p], 
-            ganhei: colabs[(i+3) % p], 
-            original_pixbet: colabs[i % p], 
-            original_bds: colabs[(i+1) % p], 
-            original_betvip: colabs[(i+2) % p], 
-            original_ganhei: colabs[(i+3) % p], 
+            ordem: i, horario: horarioFormatado, 
+            pixbet: colabs[i % p], bds: colabs[(i+1) % p], betvip: colabs[(i+2) % p], ganhei: colabs[(i+3) % p], 
+            original_pixbet: colabs[i % p], original_bds: colabs[(i+1) % p], original_betvip: colabs[(i+2) % p], original_ganhei: colabs[(i+3) % p], 
             status: "Online" 
         });
     }
+    
+    sorteioRealizado = true;
     alert("Escala gerada para o turno 23:00 - 07:00!");
 });
 
@@ -116,6 +118,7 @@ document.getElementById("btn-limpar").addEventListener("click", async () => {
     if (confirm("Deseja realmente apagar toda a escala atual?")) {
         const snaps = await getDocs(collection(db, "escala_ativa"));
         for (const s of snaps.docs) await deleteDoc(doc(db, "escala_ativa", s.id));
+        sorteioRealizado = false;
         alert("Escala limpa!");
     }
 });
