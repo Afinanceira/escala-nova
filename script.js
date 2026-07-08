@@ -8,12 +8,12 @@ document.getElementById("data-atual").innerText = new Date().toLocaleDateString(
 const tbody = document.getElementById("escala-body");
 const flashText = document.getElementById("flash-text");
 
-// Flash Report
+// Flash Report em tempo real
 const flashRef = doc(db, "config", "flash_report");
 onSnapshot(flashRef, (doc) => { if (doc.exists()) flashText.value = doc.data().conteudo || ""; });
 flashText.addEventListener("input", async (e) => { await setDoc(flashRef, { conteudo: e.target.value }); });
 
-// Renderização
+// Renderização da Escala
 onSnapshot(query(collection(db, "escala_ativa"), orderBy("ordem")), (snapshot) => {
     tbody.innerHTML = "";
     snapshot.forEach((docSnap) => {
@@ -69,10 +69,10 @@ window.gerenciarStatus = async (id, valor) => {
         if (p === 1) {
             novaEscala = { pixbet: ativos[0], bds: ativos[0], betvip: ativos[0], ganhei: ativos[0] };
         } else if (p === 2) {
-            // AQUI ESTÁ A CORREÇÃO: Força 2 casas para cada, sem exceção
+            // Força 2 casas para cada
             novaEscala = { pixbet: ativos[0], bds: ativos[0], betvip: ativos[1], ganhei: ativos[1] };
         } else {
-            // Rotação normal para 3 ou 4
+            // Rotação normal
             novaEscala = { 
                 pixbet: ativos[0 % p], bds: ativos[1 % p], betvip: ativos[2 % p], ganhei: ativos[3 % p] 
             };
@@ -81,15 +81,17 @@ window.gerenciarStatus = async (id, valor) => {
     }
 };
 
-// Geração com trava de data
+// Geração de Rodízio com limite de 2 sorteios livres por dia
 document.getElementById("btn-girar").addEventListener("click", async () => {
     const dataHoje = new Date().toLocaleDateString('pt-BR');
     const logRef = doc(db, "config", "sorteio_log");
     const logSnap = await getFirestoreDoc(logRef);
-    const dataUltimoSorteio = logSnap.exists() ? logSnap.data().data : "";
+    
+    // Recupera dados: reseta se for novo dia, senão mantém a contagem
+    let dadosLog = logSnap.exists() && logSnap.data().data === dataHoje ? logSnap.data() : { data: dataHoje, contagem: 0 };
 
-    if (dataUltimoSorteio === dataHoje) {
-        const senhaDigitada = prompt("Sorteio já realizado hoje. Digite a senha de administrador para um novo:");
+    if (dadosLog.contagem >= 2) {
+        const senhaDigitada = prompt("Você já realizou 2 sorteios hoje. Digite a senha de administrador para um novo:");
         if (senhaDigitada !== SENHA_ADMIN) {
             alert("Acesso negado.");
             return;
@@ -116,8 +118,11 @@ document.getElementById("btn-girar").addEventListener("click", async () => {
         });
     }
 
-    await setDoc(logRef, { data: dataHoje });
-    alert("Escala gerada com sucesso!");
+    // Incrementa contagem e salva no Firebase
+    dadosLog.contagem += 1;
+    await setDoc(logRef, dadosLog);
+    
+    alert(`Escala gerada com sucesso! (${dadosLog.contagem}º sorteio do dia)`);
 });
 
 document.getElementById("btn-limpar").addEventListener("click", async () => {
