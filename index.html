@@ -39,7 +39,7 @@
                         </tr>
                     </thead>
                     <tbody id="escala-body">
-                        </tbody>
+                    </tbody>
                 </table>
             </div>
         </div>
@@ -48,23 +48,25 @@
             <div class="card-header">
                 <h3>Configurações de Gerenciamento e Rodízio</h3>
             </div>
+            
+            <!-- Novo Seletor de Turno -->
+            <div class="input-group" style="margin-bottom: 20px;">
+                <label>Selecione o Turno</label>
+                <select id="select-turno" style="width: 100%; padding: 10px; background: #0b1320; color: #fff; border: 1px solid #D4AF37; border-radius: 4px;">
+                    <option value="manha">Manhã (07h - 15h)</option>
+                    <option value="noite">Noite (15h - 23h)</option>
+                    <option value="madrugada">Madrugada (23h - 07h)</option>
+                </select>
+            </div>
+
+            <!-- 6 Caixas de texto -->
             <div class="admin-grid">
-                <div class="input-group">
-                    <label>Colaborador 1</label>
-                    <input type="text" id="c1" value="Leandro" placeholder="Nome">
-                </div>
-                <div class="input-group">
-                    <label>Colaborador 2</label>
-                    <input type="text" id="c2" value="Ivah" placeholder="Nome">
-                </div>
-                <div class="input-group">
-                    <label>Colaborador 3</label>
-                    <input type="text" id="c3" value="Tarcyla" placeholder="Nome">
-                </div>
-                <div class="input-group">
-                    <label>Colaborador 4</label>
-                    <input type="text" id="c4" value="Paloma" placeholder="Nome">
-                </div>
+                <div class="input-group"><label>Colaborador 1</label><input type="text" id="c1" placeholder="Nome"></div>
+                <div class="input-group"><label>Colaborador 2</label><input type="text" id="c2" placeholder="Nome"></div>
+                <div class="input-group"><label>Colaborador 3</label><input type="text" id="c3" placeholder="Nome"></div>
+                <div class="input-group"><label>Colaborador 4</label><input type="text" id="c4" placeholder="Nome"></div>
+                <div class="input-group"><label>Colaborador 5</label><input type="text" id="c5" placeholder="Nome"></div>
+                <div class="input-group"><label>Colaborador 6</label><input type="text" id="c6" placeholder="Nome"></div>
             </div>
             
             <div class="actions-area">
@@ -78,8 +80,7 @@
                 <h3>Flash Report - Ocorrências do Turno</h3>
             </div>
             <div class="flash-box">
-                <p><strong>FLASH REPORT - (MADRUGADA)</strong></p>
-                <p>Data de Monitoramento: <span id="data-atual"></span></p>
+                <p>Data de Monitoramento: <strong id="data-display"></strong></p>
                 <textarea id="flash-text" placeholder="Digite as ocorrências aqui... Todos verão em tempo real." rows="5" style="width: 100%; background: #0b1320; color: #fff; border: 1px solid #2c3e50; padding: 10px; border-radius: 4px;"></textarea>
             </div>
         </div>
