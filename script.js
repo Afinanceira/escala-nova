@@ -3,18 +3,18 @@ import { collection, onSnapshot, doc, updateDoc, getDoc, setDoc, query, orderBy,
 
 const SENHA_ADMIN = "1234";
 
-// 1. Exibição da Data
+// Inicialização da Data
 document.getElementById("data-display").innerText = new Date().toLocaleDateString('pt-BR');
 
 const tbody = document.getElementById("escala-body");
 const flashText = document.getElementById("flash-text");
 
-// 2. Flash Report em tempo real
+// Flash Report
 const flashRef = doc(db, "config", "flash_report");
 onSnapshot(flashRef, (doc) => { if (doc.exists()) flashText.value = doc.data().conteudo || ""; });
 flashText.addEventListener("input", async (e) => { await setDoc(flashRef, { conteudo: e.target.value }); });
 
-// 3. Renderização da Escala
+// Renderização Escala
 onSnapshot(query(collection(db, "escala_ativa"), orderBy("ordem")), (snapshot) => {
     tbody.innerHTML = "";
     snapshot.forEach((docSnap) => {
@@ -42,11 +42,10 @@ onSnapshot(query(collection(db, "escala_ativa"), orderBy("ordem")), (snapshot) =
     });
 });
 
-// 4. Lógica de Gerar e Girar Rodízio
+// Botão Girar
 document.getElementById("btn-girar").addEventListener("click", async () => {
     const turno = document.getElementById("select-turno").value;
     const horaInicio = turno === "manha" ? 7 : (turno === "noite" ? 15 : 23);
-    
     const inputs = [];
     for(let i=1; i<=6; i++) inputs.push(document.getElementById(`c${i}`).value);
     const colabs = inputs.filter(n => n && n.trim() !== "");
@@ -71,22 +70,24 @@ document.getElementById("btn-girar").addEventListener("click", async () => {
         let hora = (horaInicio + i) % 24;
         let horarioFormatado = `${hora.toString().padStart(2, '0')}:00`;
         let escala = { ordem: i, horario: horarioFormatado, status: "Online", data_registro: dataHoje };
-
-        // Regra 2x2 ou Rodízio normal
-        if (p === 2) {
-            escala = { ...escala, pixbet: colabs[0], bds: colabs[0], betvip: colabs[1], ganhei: colabs[1], original_pixbet: colabs[0], original_bds: colabs[0], original_betvip: colabs[1], original_ganhei: colabs[1] };
-        } else {
-            escala = { ...escala, pixbet: colabs[i % p], bds: colabs[(i+1) % p], betvip: colabs[(i+2) % p], ganhei: colabs[(i+3) % p], original_pixbet: colabs[i % p], original_bds: colabs[(i+1) % p], original_betvip: colabs[(i+2) % p], original_ganhei: colabs[(i+3) % p] };
-        }
+        escala = { ...escala, pixbet: colabs[i % p], bds: colabs[(i+1) % p], betvip: colabs[(i+2) % p], ganhei: colabs[(i+3) % p], original_pixbet: colabs[i % p], original_bds: colabs[(i+1) % p], original_betvip: colabs[(i+2) % p], original_ganhei: colabs[(i+3) % p] };
         await setDoc(doc(db, "escala_ativa", `turno_${i}`), escala);
     }
-
     dadosLog.contagem += 1;
     await setDoc(logRef, dadosLog);
-    alert(`Escala do turno ${turno} gerada com sucesso!`);
+    alert(`Escala do turno ${turno} gerada!`);
 });
 
-// 5. Funções de Apoio (Checkin e Status)
+// Botão Limpar Escala
+document.getElementById("btn-limpar").addEventListener("click", async () => {
+    if (confirm("Deseja realmente apagar toda a escala atual?")) {
+        const snaps = await getDocs(collection(db, "escala_ativa"));
+        for (const s of snaps.docs) await deleteDoc(doc(db, "escala_ativa", s.id));
+        alert("Escala limpa com sucesso!");
+    }
+});
+
+// Funções de Apoio
 window.checkin = async (id, col) => {
     const docRef = doc(db, "escala_ativa", id);
     const d = (await getDoc(docRef)).data();
@@ -102,7 +103,7 @@ window.gerenciarStatus = async (id, valor) => {
         const ativos = [...new Set([d.original_pixbet, d.original_bds, d.original_betvip, d.original_ganhei].filter(n => n !== valor && n && n.trim() !== ""))];
         const p = ativos.length;
         if (p === 0) return;
-        let novaEscala = (p === 2) ? { pixbet: ativos[0], bds: ativos[0], betvip: ativos[1], ganhei: ativos[1] } : { pixbet: ativos[0 % p], bds: ativos[1 % p], betvip: ativos[2 % p], ganhei: ativos[3 % p] };
+        let novaEscala = { pixbet: ativos[0 % p], bds: ativos[1 % p], betvip: ativos[2 % p], ganhei: ativos[3 % p] };
         await updateDoc(docRef, { ...novaEscala, status: "Pausa: " + valor });
     }
 };
