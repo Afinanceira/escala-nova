@@ -89,9 +89,22 @@ th { background-color: #141E30; color: var(--gold); font-size: 13px; }
 .btn-gold { background-color: var(--gold); color: #000; border: none; padding: 12px 24px; font-weight: 600; cursor: pointer; border-radius: 4px; }
 .btn-danger { background-color: var(--danger); color: #fff; border: none; padding: 12px 24px; font-weight: 600; cursor: pointer; border-radius: 4px; }
 
-/* Flash Report Editável */
+/* Flash Report Editável e Estilização da Caixa Maior */
+.flash-box {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.flash-box p {
+    margin: 0 0 5px 0;
+    font-size: 14px;
+    color: var(--text-color);
+}
+
 #flash-text {
     width: 100%;
+    min-height: 180px;
     background-color: #070b12;
     color: #ffffff;
     border: 1px solid var(--border-color);
@@ -101,4 +114,5 @@ th { background-color: #141E30; color: var(--gold); font-size: 13px; }
     resize: vertical;
     box-sizing: border-box;
 }
+
 #flash-text:focus { border-color: var(--gold); outline: none; }
