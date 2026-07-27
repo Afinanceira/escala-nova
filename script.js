@@ -109,10 +109,10 @@ window.gerenciarStatus = async (id, valor) => {
 };
 
 // ==========================================
-// NOVO: Automação de Envio para o WhatsApp
+// AUTOMAÇÃO DE ENVIO PARA O WHATSAPP (+55 83 9673-8423)
 // ==========================================
 window.enviarRelatorioWhatsApp = async () => {
-    // 1. Pergunta para qual grupo você quer enviar (Com validação prévia)
+    // 1. Pergunta para qual grupo você quer enviar
     const grupoDestino = prompt("Digite o nome ou identificador do Grupo de Relatórios do WhatsApp:");
     if (!grupoDestino || grupoDestino.trim() === "") {
         alert("Envio cancelado. Nenhum grupo foi informado.");
@@ -131,11 +131,11 @@ window.enviarRelatorioWhatsApp = async () => {
         
         querySnapshot.forEach((docSnap) => {
             const d = docSnap.data();
-            mensagem = mensagem + `⏰ *${d.horario}* | Status: ${d.status || 'Online'}\n` +
-                                  `   • Pixbet: ${d.pixbet || '-'}\n` +
-                                  `   • BDS: ${d.bds || '-'}\n` +
-                                  `   • Betvip: ${d.betvip || '-'}\n` +
-                                  `   • Ganhei: ${d.ganhei || '-'}\n\n`;
+            mensagem += `⏰ *${d.horario}* | Status: ${d.status || 'Online'}\n` +
+                        `   • Pixbet: ${d.pixbet || '-'}\n` +
+                        `   • BDS: ${d.bds || '-'}\n` +
+                        `   • Betvip: ${d.betvip || '-'}\n` +
+                        `   • Ganhei: ${d.ganhei || '-'}\n\n`;
         });
 
         // Adiciona o Flash Report se houver
@@ -144,13 +144,12 @@ window.enviarRelatorioWhatsApp = async () => {
             mensagem += `📌 *Flash Report:* ${flashConteudo}\n`;
         }
 
-        mensagem += `_Enviado por Supervisão - Destino: ${grupoDestino}_`;
+        mensagem += `_Enviado por AFinanceira - Destino: ${grupoDestino}_`;
 
-        // 3. Formata para envio via API do WhatsApp / Webhook ou link direto
-        // (Caso utilize automação via Make/Evolution API, você pode substituir esta linha por um fetch para o seu webhook).
-        const urlWhatsApp = `https://api.whatsapp.com/send?text=${encodeURIComponent(mensagem)}`;
+        // 3. Configuração de redirecionamento para o número da empresa (+558396738423)
+        const numeroEmpresa = "558396738423";
+        const urlWhatsApp = `https://api.whatsapp.com/send?phone=${numeroEmpresa}&text=${encodeURIComponent(mensagem)}`;
         
-        // Abre a janela para confirmação final e disparo pelo número da empresa conectado
         window.open(urlWhatsApp, '_blank');
         
     } catch (error) {
@@ -158,3 +157,9 @@ window.enviarRelatorioWhatsApp = async () => {
         alert("Ocorreu um erro ao montar o relatório.");
     }
 };
+
+// Vinculação do botão de envio do WhatsApp caso ele exista no HTML
+const btnEnviarWpp = document.getElementById("btn-enviar-wpp");
+if (btnEnviarWpp) {
+    btnEnviarWpp.addEventListener("click", window.enviarRelatorioWhatsApp);
+}
