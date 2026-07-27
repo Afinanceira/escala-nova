@@ -114,38 +114,46 @@ window.gerenciarStatus = async (id, valor) => {
 window.enviarRelatorioWhatsApp = async () => {
     try {
         const querySnapshot = await getDocs(query(collection(db, "escala_ativa"), orderBy("ordem")));
-        if (querySnapshot.empty) {
-            alert("Não há escala ativa para gerar o relatório.");
-            return;
-        }
 
         let mensagem = `📊 *RELATÓRIO DE ESCALA - ${new Date().toLocaleDateString('pt-BR')}* \n\n`;
         
-        querySnapshot.forEach((docSnap) => {
-            const d = docSnap.data();
-            mensagem += `⏰ *${d.horario}* | Status: ${d.status || 'Online'}\n` +
-                        `   • Pixbet: ${d.pixbet || '-'}\n` +
-                        `   • BDS: ${d.bds || '-'}\n` +
-                        `   • Betvip: ${d.betvip || '-'}\n` +
-                        `   • Ganhei: ${d.ganhei || '-'}\n\n`;
-        });
+        if (!querySnapshot.empty) {
+            querySnapshot.forEach((docSnap) => {
+                const d = docSnap.data();
+                mensagem += `⏰ *${d.horario}* | Status: ${d.status || 'Online'}\n` +
+                            `   • Pixbet: ${d.pixbet || '-'}\n` +
+                            `   • BDS: ${d.bds || '-'}\n` +
+                            `   • Betvip: ${d.betvip || '-'}\n` +
+                            `   • Ganhei: ${d.ganhei || '-'}\n\n`;
+            });
+        } else {
+            mensagem += `_Nenhuma escala ativa cadastrada no momento._\n\n`;
+        }
 
         const flashConteudo = flashText.value ? flashText.value.trim() : "";
         if (flashConteudo) {
-            mensagem += `📌 *Flash Report:* ${flashConteudo}\n`;
+            mensagem += `📌 *Flash Report:* \n${flashConteudo}\n\n`;
         }
 
         mensagem += `_Enviado por AFinanceira_`;
 
-        // Copia o relatório automaticamente para a área de transferência
-        await navigator.clipboard.writeText(mensagem);
+        // Copia com segurança usando a API moderna de clipboard
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(mensagem);
+        } else {
+            // Método alternativo de compatibilidade caso o navegador bloqueie
+            const textareaTemp = document.createElement("textarea");
+            textareaTemp.value = mensagem;
+            document.body.appendChild(textareaTemp);
+            textareaTemp.select();
+            document.execCommand("copy");
+            document.body.removeChild(textareaTemp);
+        }
 
-        // Abre o WhatsApp direto no número configurado sem travar em prompts
-        const numeroEmpresa = "558396738423";
-        const urlWhatsApp = `https://api.whatsapp.com/send?phone=${numeroEmpresa}`;
+        // Abre o WhatsApp Web geral para você escolher o grupo livremente
+        window.open("https://web.whatsapp.com/", "_blank");
         
-        window.open(urlWhatsApp, '_blank');
-        alert("Relatório copiado para a área de transferência! Cole no grupo desejado do WhatsApp.");
+        alert("✅ Relatório copiado com sucesso!\n\nO WhatsApp Web foi aberto. Basta abrir o grupo desejado e apertar Ctrl+V para enviar.");
         
     } catch (error) {
         console.error("Erro ao gerar relatório para o WhatsApp:", error);
