@@ -107,3 +107,54 @@ window.gerenciarStatus = async (id, valor) => {
         await updateDoc(docRef, { ...novaEscala, status: "Pausa: " + valor });
     }
 };
+
+// ==========================================
+// NOVO: Automação de Envio para o WhatsApp
+// ==========================================
+window.enviarRelatorioWhatsApp = async () => {
+    // 1. Pergunta para qual grupo você quer enviar (Com validação prévia)
+    const grupoDestino = prompt("Digite o nome ou identificador do Grupo de Relatórios do WhatsApp:");
+    if (!grupoDestino || grupoDestino.trim() === "") {
+        alert("Envio cancelado. Nenhum grupo foi informado.");
+        return;
+    }
+
+    try {
+        // 2. Coleta os dados da escala atual do Firestore
+        const querySnapshot = await getDocs(query(collection(db, "escala_ativa"), orderBy("ordem")));
+        if (querySnapshot.empty) {
+            alert("Não há escala ativa para gerar o relatório.");
+            return;
+        }
+
+        let mensagem = `📊 *RELATÓRIO DE ESCALA - ${new Date().toLocaleDateString('pt-BR')}* \n\n`;
+        
+        querySnapshot.forEach((docSnap) => {
+            const d = docSnap.data();
+            mensagem = mensagem + `⏰ *${d.horario}* | Status: ${d.status || 'Online'}\n` +
+                                  `   • Pixbet: ${d.pixbet || '-'}\n` +
+                                  `   • BDS: ${d.bds || '-'}\n` +
+                                  `   • Betvip: ${d.betvip || '-'}\n` +
+                                  `   • Ganhei: ${d.ganhei || '-'}\n\n`;
+        });
+
+        // Adiciona o Flash Report se houver
+        const flashConteudo = flashText.value ? flashText.value.trim() : "";
+        if (flashConteudo) {
+            mensagem += `📌 *Flash Report:* ${flashConteudo}\n`;
+        }
+
+        mensagem += `_Enviado por Supervisão - Destino: ${grupoDestino}_`;
+
+        // 3. Formata para envio via API do WhatsApp / Webhook ou link direto
+        // (Caso utilize automação via Make/Evolution API, você pode substituir esta linha por um fetch para o seu webhook).
+        const urlWhatsApp = `https://api.whatsapp.com/send?text=${encodeURIComponent(mensagem)}`;
+        
+        // Abre a janela para confirmação final e disparo pelo número da empresa conectado
+        window.open(urlWhatsApp, '_blank');
+        
+    } catch (error) {
+        console.error("Erro ao gerar relatório para o WhatsApp:", error);
+        alert("Ocorreu um erro ao montar o relatório.");
+    }
+};
