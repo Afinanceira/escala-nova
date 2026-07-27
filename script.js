@@ -87,7 +87,7 @@ document.getElementById("btn-limpar").addEventListener("click", async () => {
     }
 });
 
-// Funções de Apoio
+// Funções de Apoio globais
 window.checkin = async (id, col) => {
     const docRef = doc(db, "escala_ativa", id);
     const d = (await getDoc(docRef)).data();
@@ -112,7 +112,6 @@ window.gerenciarStatus = async (id, valor) => {
 // AUTOMAÇÃO DE ENVIO PARA O WHATSAPP (+55 83 9673-8423)
 // ==========================================
 window.enviarRelatorioWhatsApp = async () => {
-    // 1. Pergunta para qual grupo você quer enviar
     const grupoDestino = prompt("Digite o nome ou identificador do Grupo de Relatórios do WhatsApp:");
     if (!grupoDestino || grupoDestino.trim() === "") {
         alert("Envio cancelado. Nenhum grupo foi informado.");
@@ -120,7 +119,6 @@ window.enviarRelatorioWhatsApp = async () => {
     }
 
     try {
-        // 2. Coleta os dados da escala atual do Firestore
         const querySnapshot = await getDocs(query(collection(db, "escala_ativa"), orderBy("ordem")));
         if (querySnapshot.empty) {
             alert("Não há escala ativa para gerar o relatório.");
@@ -138,7 +136,6 @@ window.enviarRelatorioWhatsApp = async () => {
                         `   • Ganhei: ${d.ganhei || '-'}\n\n`;
         });
 
-        // Adiciona o Flash Report se houver
         const flashConteudo = flashText.value ? flashText.value.trim() : "";
         if (flashConteudo) {
             mensagem += `📌 *Flash Report:* ${flashConteudo}\n`;
@@ -146,7 +143,6 @@ window.enviarRelatorioWhatsApp = async () => {
 
         mensagem += `_Enviado por AFinanceira - Destino: ${grupoDestino}_`;
 
-        // 3. Configuração de redirecionamento para o número da empresa (+558396738423)
         const numeroEmpresa = "558396738423";
         const urlWhatsApp = `https://api.whatsapp.com/send?phone=${numeroEmpresa}&text=${encodeURIComponent(mensagem)}`;
         
@@ -158,8 +154,10 @@ window.enviarRelatorioWhatsApp = async () => {
     }
 };
 
-// Vinculação do botão de envio do WhatsApp caso ele exista no HTML
-const btnEnviarWpp = document.getElementById("btn-enviar-wpp");
-if (btnEnviarWpp) {
-    btnEnviarWpp.addEventListener("click", window.enviarRelatorioWhatsApp);
-}
+// Vinculação de segurança via Event Listener caso o botão exista no HTML
+document.addEventListener("DOMContentLoaded", () => {
+    const btnEnviarWpp = document.getElementById("btn-enviar-wpp");
+    if (btnEnviarWpp) {
+        btnEnviarWpp.addEventListener("click", window.enviarRelatorioWhatsApp);
+    }
+});
