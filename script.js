@@ -109,55 +109,37 @@ window.gerenciarStatus = async (id, valor) => {
 };
 
 // ==========================================
-// AUTOMAÇÃO DE ENVIO PARA O WHATSAPP
+// AUTOMAÇÃO DE ENVIO DO FLASH REPORT PARA O WHATSAPP
 // ==========================================
 window.enviarRelatorioWhatsApp = async () => {
     try {
-        const querySnapshot = await getDocs(query(collection(db, "escala_ativa"), orderBy("ordem")));
-
-        let mensagem = `📊 *RELATÓRIO DE ESCALA - ${new Date().toLocaleDateString('pt-BR')}* \n\n`;
-        
-        if (!querySnapshot.empty) {
-            querySnapshot.forEach((docSnap) => {
-                const d = docSnap.data();
-                mensagem += `⏰ *${d.horario}* | Status: ${d.status || 'Online'}\n` +
-                            `   • Pixbet: ${d.pixbet || '-'}\n` +
-                            `   • BDS: ${d.bds || '-'}\n` +
-                            `   • Betvip: ${d.betvip || '-'}\n` +
-                            `   • Ganhei: ${d.ganhei || '-'}\n\n`;
-            });
-        } else {
-            mensagem += `_Nenhuma escala ativa cadastrada no momento._\n\n`;
-        }
-
         const flashConteudo = flashText.value ? flashText.value.trim() : "";
-        if (flashConteudo) {
-            mensagem += `📌 *Flash Report:* \n${flashConteudo}\n\n`;
+        
+        if (!flashConteudo) {
+            alert("A caixa do Flash Report está vazia. Escreva o relatório antes de enviar.");
+            return;
         }
 
-        mensagem += `_Enviado por AFinanceira_`;
-
-        // Copia com segurança usando a API moderna de clipboard
+        // Copia estritamente o conteúdo digitado na caixa de texto do Flash Report
         if (navigator.clipboard && navigator.clipboard.writeText) {
-            await navigator.clipboard.writeText(mensagem);
+            await navigator.clipboard.writeText(flashConteudo);
         } else {
-            // Método alternativo de compatibilidade caso o navegador bloqueie
             const textareaTemp = document.createElement("textarea");
-            textareaTemp.value = mensagem;
+            textareaTemp.value = flashConteudo;
             document.body.appendChild(textareaTemp);
             textareaTemp.select();
             document.execCommand("copy");
             document.body.removeChild(textareaTemp);
         }
 
-        // Abre o WhatsApp Web geral para você escolher o grupo livremente
+        // Abre o WhatsApp Web para você escolher o grupo livremente
         window.open("https://web.whatsapp.com/", "_blank");
         
-        alert("✅ Relatório copiado com sucesso!\n\nO WhatsApp Web foi aberto. Basta abrir o grupo desejado e apertar Ctrl+V para enviar.");
+        alert("✅ Flash Report copiado com sucesso!\n\nO WhatsApp Web foi aberto. Basta abrir o grupo desejado e apertar Ctrl+V para colar e enviar.");
         
     } catch (error) {
-        console.error("Erro ao gerar relatório para o WhatsApp:", error);
-        alert("Ocorreu um erro ao montar o relatório.");
+        console.error("Erro ao copiar Flash Report para o WhatsApp:", error);
+        alert("Ocorreu um erro ao copiar o texto.");
     }
 };
 
