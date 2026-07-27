@@ -87,7 +87,7 @@ document.getElementById("btn-limpar").addEventListener("click", async () => {
     }
 });
 
-// Funções de Apoio globais
+// Funções de Apoio
 window.checkin = async (id, col) => {
     const docRef = doc(db, "escala_ativa", id);
     const d = (await getDoc(docRef)).data();
@@ -109,15 +109,9 @@ window.gerenciarStatus = async (id, valor) => {
 };
 
 // ==========================================
-// AUTOMAÇÃO DE ENVIO PARA O WHATSAPP (+55 83 9673-8423)
+// AUTOMAÇÃO DE ENVIO PARA O WHATSAPP
 // ==========================================
 window.enviarRelatorioWhatsApp = async () => {
-    const grupoDestino = prompt("Digite o nome ou identificador do Grupo de Relatórios do WhatsApp:");
-    if (!grupoDestino || grupoDestino.trim() === "") {
-        alert("Envio cancelado. Nenhum grupo foi informado.");
-        return;
-    }
-
     try {
         const querySnapshot = await getDocs(query(collection(db, "escala_ativa"), orderBy("ordem")));
         if (querySnapshot.empty) {
@@ -141,12 +135,17 @@ window.enviarRelatorioWhatsApp = async () => {
             mensagem += `📌 *Flash Report:* ${flashConteudo}\n`;
         }
 
-        mensagem += `_Enviado por AFinanceira - Destino: ${grupoDestino}_`;
+        mensagem += `_Enviado por AFinanceira_`;
 
+        // Copia o relatório automaticamente para a área de transferência
+        await navigator.clipboard.writeText(mensagem);
+
+        // Abre o WhatsApp direto no número configurado sem travar em prompts
         const numeroEmpresa = "558396738423";
-        const urlWhatsApp = `https://api.whatsapp.com/send?phone=${numeroEmpresa}&text=${encodeURIComponent(mensagem)}`;
+        const urlWhatsApp = `https://api.whatsapp.com/send?phone=${numeroEmpresa}`;
         
         window.open(urlWhatsApp, '_blank');
+        alert("Relatório copiado para a área de transferência! Cole no grupo desejado do WhatsApp.");
         
     } catch (error) {
         console.error("Erro ao gerar relatório para o WhatsApp:", error);
@@ -154,7 +153,7 @@ window.enviarRelatorioWhatsApp = async () => {
     }
 };
 
-// Vinculação de segurança via Event Listener caso o botão exista no HTML
+// Vinculação de segurança via Event Listener
 document.addEventListener("DOMContentLoaded", () => {
     const btnEnviarWpp = document.getElementById("btn-enviar-wpp");
     if (btnEnviarWpp) {
