@@ -21,17 +21,19 @@ onSnapshot(query(collection(db, "escala_ativa"), orderBy("ordem")), (snapshot) =
         const d = docSnap.data();
         const colunas = ['pixbet', 'bds', 'discord', 'ganhei'];
         
-        // Coleta todos os colaboradores originais válidos desta linha
-        const colabsOriginais = [d.original_pixbet, d.original_bds, d.original_discord, d.original_ganhei].filter(n => n && n.trim() !== "");
+        const colabsOriginais = [d.original_pixbet, d.original_bds, d.original_discord, d.original_ganhei].filter(n => n && n.trim() !== "" && n !== "TODOS");
         const colabsUnicos = [...new Set(colabsOriginais)];
         
         let linhaHTML = `<tr><td class="text-bold">${d.horario}</td>`;
         colunas.forEach(col => {
             const statusCheck = d[`checkin_${col}`] === 'OK' ? '#28a745' : '#1a2533';
-            linhaHTML += `<td><button class="btn-nome-checkin" onclick="window.checkin('${docSnap.id}', '${col}')" style="background:${statusCheck};">${d[col] || ""}</button></td>`;
+            let valorExibido = d[col] || "";
+            let acaoClick = col === 'discord' && valorExibido === "TODOS" ? "" : `onclick="window.checkin('${docSnap.id}', '${col}')"`;
+            let estiloCursor = col === 'discord' && valorExibido === "TODOS" ? "cursor: default;" : "";
+            
+            linhaHTML += `<td><button class="btn-nome-checkin" ${acaoClick} style="background:${statusCheck}; ${estiloCursor}">${valorExibido}</button></td>`;
         });
 
-        // Identifica pausas ativas (permite múltiplos nomes separados por vírgula ou estado)
         let statusTexto = d.status || 'Online';
         let corStatus = statusTexto.startsWith("Online") ? "#28a745" : "#dc3545";
 
@@ -48,7 +50,7 @@ onSnapshot(query(collection(db, "escala_ativa"), orderBy("ordem")), (snapshot) =
     });
 });
 
-// Botão Girar (Com suporte a 7 caixas e regra do Discord)
+// Botão Girar (Com regra do "TODOS" na madrugada)
 document.getElementById("btn-girar").addEventListener("click", async () => {
     const turno = document.getElementById("select-turno").value;
     const horaInicio = turno === "manha" ? 7 : (turno === "noite" ? 15 : 23);
@@ -80,8 +82,14 @@ document.getElementById("btn-girar").addEventListener("click", async () => {
 
         let pixbetVal = colabs[i % p];
         let bdsVal = colabs[(i+1) % p];
-        let discordVal = colabs[(i+2) % p];
         let ganheiVal = colabs[(i+3) % p];
+        let discordVal;
+
+        if (turno === "madrugada") {
+            discordVal = "TODOS";
+        } else {
+            discordVal = colabs[(i+2) % p];
+        }
 
         escala = { 
             ...escala, 
@@ -93,7 +101,7 @@ document.getElementById("btn-girar").addEventListener("click", async () => {
             original_bds: bdsVal, 
             original_discord: discordVal, 
             original_ganhei: ganheiVal,
-            pausados: [] // Lista de pausados inicialmente vazia
+            pausados: []
         };
 
         await setDoc(doc(db, "escala_ativa", `turno_${i}`), escala);
@@ -117,6 +125,7 @@ document.getElementById("btn-limpar").addEventListener("click", async () => {
 window.checkin = async (id, col) => {
     const docRef = doc(db, "escala_ativa", id);
     const d = (await getDoc(docRef)).data();
+    if (col === 'discord' && d.discord === "TODOS") return;
     await updateDoc(docRef, { [`checkin_${col}`]: d[`checkin_${col}`] === 'OK' ? 'Pendente' : 'OK' });
 };
 
@@ -136,41 +145,38 @@ window.gerenciarStatus = async (id, valor) => {
     }
 };
 
-// Gerenciamento de Pausas Múltiplas e Realocação Automática
+// Gerenciamento de Pausas Múltiplas com Tratamento para a Madrugada
 window.alternarPausa = async (id, colaborador) => {
     const docRef = doc(db, "escala_ativa", id);
     const d = (await getDoc(docRef)).data();
     
     let pausadosAtuais = d.pausados || [];
     
-    // Alterna o estado do colaborador (se já está pausado, remove; senão, adiciona)
     if (pausadosAtuais.includes(colaborador)) {
         pausadosAtuais = pausadosAtuais.filter(n => n !== colaborador);
     } else {
         pausadosAtuais.push(colaborador);
     }
 
-    // Lista de todos os colaboradores originais da linha
-    const todosOriginais = [d.original_pixbet, d.original_bds, d.original_discord, d.original_ganhei];
-    const unicosOriginais = [...new Set(todosOriginais)];
+    const todosOriginais = [d.original_pixbet, d.original_bds, d.original_ganhei];
+    const unicosOriginais = [...new Set(todosOriginais.filter(n => n && n.trim() !== ""))];
 
-    // Filtra quem continua ativo (não está na lista de pausados)
     const ativos = unicosOriginais.filter(n => !pausadosAtuais.includes(n));
     const qtdAtivos = ativos.length;
 
     let novaEscala = {};
     if (qtdAtivos === 0) {
-        // Se todos estiverem em pausa
-        novaEscala = { pixbet: "Pausa", bds: "Pausa", discord: "Pausa", ganhei: "Pausa" };
+        novaEscala = { pixbet: "Pausa", bds: "Pausa", ganhei: "Pausa" };
     } else {
-        // Realoca dinamicamente os postos entre os colaboradores que restaram ativos
         novaEscala = {
             pixbet: ativos[0 % qtdAtivos],
             bds: ativos[1 % qtdAtivos],
-            discord: ativos[2 % qtdAtivos],
-            ganhei: ativos[3 % qtdAtivos]
+            ganhei: ativos[2 % qtdAtivos]
         };
     }
+
+    // Mantém "TODOS" na madrugada ou o valor original do discord nos demais turnos
+    novaEscala.discord = d.original_discord;
 
     let statusTexto = pausadosAtuais.length > 0 ? "Pausa: " + pausadosAtuais.join(", ") : "Online";
 
