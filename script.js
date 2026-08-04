@@ -23,22 +23,24 @@ const flashRef = doc(db, "config", "flash_report");
 onSnapshot(flashRef, (docSnap) => { if (docSnap.exists()) flashText.value = docSnap.data().conteudo || ""; });
 flashText.addEventListener("input", async (e) => { await setDoc(flashRef, { conteudo: e.target.value }); });
 
-// Renderização Escala com suporte a Pausas Múltiplas
+// Renderização Escala com suporte a Pausas e Realocação Direta
 onSnapshot(query(collection(db, "escala_ativa"), orderBy("ordem")), (snapshot) => {
     tbody.innerHTML = "";
     snapshot.forEach((docSnap) => {
         const d = docSnap.data();
-        const colunas = ['pixbet', 'bds', 'discord', 'ganhei'];
+        const turnoAtual = d.turno || "manha";
+        // Se for manhã ou noite, inclui a coluna 'suporte'. Na madrugada, apenas as 4 principais.
+        const colunas = turnoAtual === "madrugada" ? ['pixbet', 'bds', 'discord', 'ganhei'] : ['pixbet', 'bds', 'discord', 'ganhei', 'suporte'];
         
-        const colabsOriginais = [d.original_pixbet, d.original_bds, d.original_discord, d.original_ganhei].filter(n => n && n.trim() !== "" && n !== "TODOS");
+        const colabsOriginais = [d.original_pixbet, d.original_bds, d.original_discord, d.original_ganhei, d.original_suporte].filter(n => n && n.trim() !== "" && n !== "TODOS" && n !== "N/A");
         const colabsUnicos = [...new Set(colabsOriginais)];
         
         let linhaHTML = `<tr><td class="text-bold">${d.horario}</td>`;
         colunas.forEach(col => {
             const statusCheck = d[`checkin_${col}`] === 'OK' ? '#28a745' : '#1a2533';
             let valorExibido = d[col] || "";
-            let acaoClick = col === 'discord' && valorExibido === "TODOS" ? "" : `onclick="window.checkin('${docSnap.id}', '${col}')"`;
-            let estiloCursor = col === 'discord' && valorExibido === "TODOS" ? "cursor: default;" : "";
+            let acaoClick = (col === 'discord' && valorExibido === "TODOS") || valorExibido === "N/A" || valorExibido === "" ? "" : `onclick="window.checkin('${docSnap.id}', '${col}')"`;
+            let estiloCursor = (col === 'discord' && valorExibido === "TODOS") || valorExibido === "N/A" || valorExibido === "" ? "cursor: default;" : "";
             
             linhaHTML += `<td><button class="btn-nome-checkin" ${acaoClick} style="background:${statusCheck}; ${estiloCursor}">${valorExibido}</button></td>`;
         });
@@ -59,7 +61,7 @@ onSnapshot(query(collection(db, "escala_ativa"), orderBy("ordem")), (snapshot) =
     });
 });
 
-// Botão Girar Rodízio
+// Botão Girar Rodízio com Suporte a 6 pessoas e categoria Suporte
 document.getElementById("btn-girar").addEventListener("click", async () => {
     const turno = document.getElementById("select-turno").value;
     const horaInicio = turno === "manha" ? 7 : (turno === "noite" ? 15 : 23);
@@ -81,7 +83,7 @@ document.getElementById("btn-girar").addEventListener("click", async () => {
         if (senha !== SENHA_ADMIN) { alert("Acesso negado."); return; }
     }
 
-    // Sorteio Justo do Relatório (Evitando repetição consecutiva)
+    // Sorteio Justo do Relatório
     const historicoRelatorioSnap = await getDoc(relatorioRef);
     let ultimoResponsavel = historicoRelatorioSnap.exists() ? historicoRelatorioSnap.data().nome : "";
 
@@ -100,7 +102,7 @@ document.getElementById("btn-girar").addEventListener("click", async () => {
     for (let i = 0; i < 8; i++) {
         let hora = (horaInicio + i) % 24;
         let horarioFormatado = `${hora.toString().padStart(2, '0')}:00`;
-        let escala = { ordem: i, horario: horarioFormatado, status: "Online", data_registro: dataHoje };
+        let escala = { ordem: i, horario: horarioFormatado, status: "Online", data_registro: dataHoje, turno: turno };
 
         let pixIndex = i % p;
         let bdsIndex = (i + 1) % p;
@@ -116,11 +118,21 @@ document.getElementById("btn-girar").addEventListener("click", async () => {
         let bdsVal = colabs[bdsIndex];
         let ganheiVal = colabs[ganheiIndex];
         let discordVal;
+        let suporteVal = "N/A";
 
         if (turno === "madrugada") {
             discordVal = "TODOS";
         } else {
             discordVal = colabs[discordIndex];
+            // Se houver 6 pessoas, sorteia 2 para suporte de forma justa rotativa
+            if (p === 6) {
+                let supIndex1 = (i + 4) % p;
+                let supIndex2 = (i + 5) % p;
+                suporteVal = `${colabs[supIndex1]}, ${colabs[supIndex2]}`;
+            } else if (p > 6) {
+                let supIndex = (i + 4) % p;
+                suporteVal = colabs[supIndex];
+            }
         }
 
         escala = { 
@@ -129,10 +141,12 @@ document.getElementById("btn-girar").addEventListener("click", async () => {
             bds: bdsVal, 
             discord: discordVal, 
             ganhei: ganheiVal, 
+            suporte: suporteVal,
             original_pixbet: pixbetVal, 
             original_bds: bdsVal, 
             original_discord: discordVal, 
             original_ganhei: ganheiVal,
+            original_suporte: suporteVal,
             pausados: []
         };
 
@@ -157,7 +171,7 @@ document.getElementById("btn-limpar").addEventListener("click", async () => {
 window.checkin = async (id, col) => {
     const docRef = doc(db, "escala_ativa", id);
     const d = (await getDoc(docRef)).data();
-    if (col === 'discord' && d.discord === "TODOS") return;
+    if ((col === 'discord' && d.discord === "TODOS") || d[col] === "N/A" || !d[col]) return;
     await updateDoc(docRef, { [`checkin_${col}`]: d[`checkin_${col}`] === 'OK' ? 'Pendente' : 'OK' });
 };
 
@@ -170,12 +184,14 @@ window.gerenciarStatus = async (id, valor) => {
             bds: d.original_bds, 
             discord: d.original_discord, 
             ganhei: d.original_ganhei, 
+            suporte: d.original_suporte,
             pausados: [],
             status: "Online" 
         }); 
     }
 };
 
+// Gerenciamento de Pausas com Realocação estricta apenas entre os ativos disponíveis no horário
 window.alternarPausa = async (id, colaborador) => {
     const docRef = doc(db, "escala_ativa", id);
     const d = (await getDoc(docRef)).data();
@@ -188,29 +204,43 @@ window.alternarPausa = async (id, colaborador) => {
         pausadosAtuais.push(colaborador);
     }
 
+    // Pega todos os originais do turno (exceto N/A ou vazios)
     const todosOriginais = [d.original_pixbet, d.original_bds, d.original_ganhei];
+    if (d.turno !== "madrugada" && d.original_suporte && d.original_suporte !== "N/A") {
+        // Se suporte tiver mais de um nome (ex: 6 pessoas), separa por vírgula
+        d.original_suporte.split(',').forEach(s => todosOriginais.push(s.trim()));
+    }
     const unicosOriginais = [...new Set(todosOriginais.filter(n => n && n.trim() !== ""))];
 
+    // Filtra quem está trabalhando (não está pausado)
     const ativos = unicosOriginais.filter(n => !pausadosAtuais.includes(n));
     const qtdAtivos = ativos.length;
 
     let novaEscala = {};
     if (qtdAtivos === 0) {
-        novaEscala = { pixbet: "Pausa", bds: "Pausa", ganhei: "Pausa" };
+        novaEscala = { pixbet: "Pausa", bds: "Pausa", ganhei: "Pausa", suporte: "Pausa" };
     } else if (qtdAtivos === 1) {
-        novaEscala = { pixbet: ativos[0], bds: ativos[0], ganhei: ativos[0] };
+        novaEscala = { pixbet: ativos[0], bds: ativos[0], ganhei: ativos[0], suporte: ativos[0] };
     } else {
+        // Redistribui dinamicamente apenas entre os ativos disponíveis no horário
         let pIdx = 0;
         let bIdx = 1 % qtdAtivos;
+        if (pIdx === bIdx && qtdAtivos > 1) bIdx = 1;
         let gIdx = 2 % qtdAtivos;
-
+        
         novaEscala = {
             pixbet: ativos[pIdx],
             bds: ativos[bIdx],
             ganhei: ativos[gIdx]
         };
+
+        if (d.turno !== "madrugada") {
+            let sIdx = 3 % qtdAtivos;
+            novaEscala.suporte = ativos[sIdx];
+        }
     }
 
+    // Discord mantém regra própria (TODOS na madrugada ou original nos demais)
     novaEscala.discord = d.original_discord;
 
     let statusTexto = pausadosAtuais.length > 0 ? "Pausa: " + pausadosAtuais.join(", ") : "Online";
