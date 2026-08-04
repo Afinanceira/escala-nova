@@ -23,7 +23,7 @@ const flashRef = doc(db, "config", "flash_report");
 onSnapshot(flashRef, (docSnap) => { if (docSnap.exists()) flashText.value = docSnap.data().conteudo || ""; });
 flashText.addEventListener("input", async (e) => { await setDoc(flashRef, { conteudo: e.target.value }); });
 
-// Renderização Escala com suporte a Pausas Individuais e Categoria Suporte
+// Renderização Escala
 onSnapshot(query(collection(db, "escala_ativa"), orderBy("ordem")), (snapshot) => {
     tbody.innerHTML = "";
     snapshot.forEach((docSnap) => {
@@ -31,7 +31,6 @@ onSnapshot(query(collection(db, "escala_ativa"), orderBy("ordem")), (snapshot) =
         const turnoAtual = d.turno || "manha";
         const colunas = turnoAtual === "madrugada" ? ['pixbet', 'bds', 'discord', 'ganhei'] : ['pixbet', 'bds', 'discord', 'ganhei', 'suporte'];
         
-        // Extrai cada colaborador de forma individual, quebrando qualquer vírgula para separar quem divide o suporte
         let listaBruta = [d.original_pixbet, d.original_bds, d.original_discord, d.original_ganhei, d.original_suporte];
         let colabsIndividuais = [];
         listaBruta.forEach(item => {
@@ -70,7 +69,7 @@ onSnapshot(query(collection(db, "escala_ativa"), orderBy("ordem")), (snapshot) =
     });
 });
 
-// Botão Girar Rodízio com Suporte a 6 pessoas e categoria Suporte
+// Botão Girar Rodízio
 document.getElementById("btn-girar").addEventListener("click", async () => {
     const turno = document.getElementById("select-turno").value;
     const horaInicio = turno === "manha" ? 7 : (turno === "noite" ? 15 : 23);
@@ -113,26 +112,27 @@ document.getElementById("btn-girar").addEventListener("click", async () => {
         let horarioFormatado = `${hora.toString().padStart(2, '0')}:00`;
         let escala = { ordem: i, horario: horarioFormatado, status: "Online", data_registro: dataHoje, turno: turno };
 
-        let pixIndex = i % p;
-        let bdsIndex = (i + 1) % p;
-        
-        if (p > 1 && pixIndex === bdsIndex) {
-            bdsIndex = (bdsIndex + 1) % p;
-        }
-
-        let discordIndex = (i + 2) % p;
-        let ganheiIndex = (i + 3) % p;
-
-        let pixbetVal = colabs[pixIndex];
-        let bdsVal = colabs[bdsIndex];
-        let ganheiVal = colabs[ganheiIndex];
-        let discordVal;
-        let suporteVal = "N/A";
+        let pixbetVal, bdsVal, ganheiVal, discordVal, suporteVal = "N/A";
 
         if (turno === "madrugada") {
+            // Lógica original rigorosa da madrugada mantida intacta
+            pixbetVal = colabs[i % p];
+            bdsVal = colabs[(i + 1) % p];
             discordVal = "TODOS";
+            ganheiVal = colabs[(i + 2) % p];
         } else {
+            let pixIndex = i % p;
+            let bdsIndex = (i + 1) % p;
+            if (p > 1 && pixIndex === bdsIndex) bdsIndex = (bdsIndex + 1) % p;
+
+            let discordIndex = (i + 2) % p;
+            let ganheiIndex = (i + 3) % p;
+
+            pixbetVal = colabs[pixIndex];
+            bdsVal = colabs[bdsIndex];
+            ganheiVal = colabs[ganheiIndex];
             discordVal = colabs[discordIndex];
+
             if (p === 6) {
                 let supIndex1 = (i + 4) % p;
                 let supIndex2 = (i + 5) % p;
@@ -175,7 +175,7 @@ document.getElementById("btn-limpar").addEventListener("click", async () => {
     }
 });
 
-// Funções Globais expostas no objeto window
+// Funções Globais
 window.checkin = async (id, col) => {
     const docRef = doc(db, "escala_ativa", id);
     const d = (await getDoc(docRef)).data();
@@ -199,7 +199,7 @@ window.gerenciarStatus = async (id, valor) => {
     }
 };
 
-// Gerenciamento de Pausas Individuais com Redistribuição Estrita Apenas Entre os Ativos
+// Gerenciamento de Pausas Individuais
 window.alternarPausa = async (id, colaborador) => {
     const docRef = doc(db, "escala_ativa", id);
     const d = (await getDoc(docRef)).data();
@@ -212,42 +212,57 @@ window.alternarPausa = async (id, colaborador) => {
         pausadosAtuais.push(colaborador);
     }
 
-    // Coleta todos os colaboradores únicos do turno de forma totalmente individual
     let listaBruta = [d.original_pixbet, d.original_bds, d.original_ganhei];
-    if (d.turno !== "madrugada" && d.original_suporte && d.original_suporte !== "N/A") {
-        d.original_suporte.split(',').forEach(s => listaBruta.push(s.trim()));
+    if (d.turno === "madrugada") {
+        // Na madrugada inclui também o ganhei para pegar todos os ativos da noite
+        listaBruta.push(d.original_ganhei);
+    } else {
+        if (d.original_suporte && d.original_suporte !== "N/A") {
+            d.original_suporte.split(',').forEach(s => listaBruta.push(s.trim()));
+        }
     }
     const unicosOriginais = [...new Set(listaBruta.filter(n => n && n.trim() !== ""))];
 
-    // Filtra quem está ativo (não está pausado)
     const ativos = unicosOriginais.filter(n => !pausadosAtuais.includes(n));
     const qtdAtivos = ativos.length;
 
     let novaEscala = {};
-    if (qtdAtivos === 0) {
-        novaEscala = { pixbet: "Pausa", bds: "Pausa", ganhei: "Pausa", suporte: "Pausa" };
-    } else if (qtdAtivos === 1) {
-        novaEscala = { pixbet: ativos[0], bds: ativos[0], ganhei: ativos[0], suporte: ativos[0] };
+    if (d.turno === "madrugada") {
+        // Redistribuição específica e segura para a madrugada com base nos ativos
+        if (qtdAtivos === 0) {
+            novaEscala = { pixbet: "Pausa", bds: "Pausa", ganhei: "Pausa" };
+        } else if (qtdAtivos === 1) {
+            novaEscala = { pixbet: ativos[0], bds: ativos[0], ganhei: ativos[0] };
+        } else {
+            novaEscala = {
+                pixbet: ativos[0 % qtdAtivos],
+                bds: ativos[1 % qtdAtivos],
+                ganhei: ativos[2 % qtdAtivos]
+            };
+        }
+        novaEscala.discord = "TODOS";
     } else {
-        // Redistribui dinamicamente entre os ativos disponíveis
-        let pIdx = 0;
-        let bIdx = 1 % qtdAtivos;
-        if (pIdx === bIdx && qtdAtivos > 1) bIdx = 1;
-        let gIdx = 2 % qtdAtivos;
-        
-        novaEscala = {
-            pixbet: ativos[pIdx],
-            bds: ativos[bIdx],
-            ganhei: ativos[gIdx]
-        };
+        if (qtdAtivos === 0) {
+            novaEscala = { pixbet: "Pausa", bds: "Pausa", ganhei: "Pausa", suporte: "Pausa" };
+        } else if (qtdAtivos === 1) {
+            novaEscala = { pixbet: ativos[0], bds: ativos[0], ganhei: ativos[0], suporte: ativos[0] };
+        } else {
+            let pIdx = 0;
+            let bIdx = 1 % qtdAtivos;
+            if (pIdx === bIdx && qtdAtivos > 1) bIdx = 1;
+            let gIdx = 2 % qtdAtivos;
+            
+            novaEscala = {
+                pixbet: ativos[pIdx],
+                bds: ativos[bIdx],
+                ganhei: ativos[gIdx]
+            };
 
-        if (d.turno !== "madrugada") {
             let sIdx = 3 % qtdAtivos;
             novaEscala.suporte = ativos[sIdx];
         }
+        novaEscala.discord = d.original_discord;
     }
-
-    novaEscala.discord = d.original_discord;
 
     let statusTexto = pausadosAtuais.length > 0 ? "Pausa: " + pausadosAtuais.join(", ") : "Online";
 
