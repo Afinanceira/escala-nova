@@ -24,7 +24,7 @@ const flashRef = doc(db, "config", "flash_report");
 onSnapshot(flashRef, (docSnap) => { if (docSnap.exists()) flashText.value = docSnap.data().conteudo || ""; });
 flashText.addEventListener("input", async (e) => { await setDoc(flashRef, { conteudo: e.target.value }); });
 
-// Renderização Escala com ajuste dinâmico do cabeçalho e colunas fixas
+// Renderização Escala com colunas fixas e cabeçalho dinâmico para a aba Suporte
 onSnapshot(query(collection(db, "escala_ativa"), orderBy("ordem")), (snapshot) => {
     tbody.innerHTML = "";
     
@@ -36,7 +36,6 @@ onSnapshot(query(collection(db, "escala_ativa"), orderBy("ordem")), (snapshot) =
         }
     });
 
-    // Atualiza o cabeçalho da tabela dinamicamente para incluir ou ocultar a coluna Suporte
     if (theadTr) {
         theadTr.innerHTML = `
             <th>HORÁRIO</th>
@@ -102,7 +101,7 @@ onSnapshot(query(collection(db, "escala_ativa"), orderBy("ordem")), (snapshot) =
     });
 });
 
-// Botão Girar Rodízio
+// Botão Girar Rodízio com revezamento justo e circular contínuo para evitar repetições no suporte (6 ou 7+ colaboradores)
 document.getElementById("btn-girar").addEventListener("click", async () => {
     const turno = document.getElementById("select-turno").value;
     const horaInicio = turno === "manha" ? 7 : (turno === "noite" ? 15 : 23);
@@ -165,11 +164,19 @@ document.getElementById("btn-girar").addEventListener("click", async () => {
             ganheiVal = colabs[ganheiIndex];
             discordVal = colabs[discordIndex];
 
-            // Se tiver 4 ou menos pessoas, suporte fica N/A. Se tiver 5 ou mais, entra no sorteio.
+            // Regra universal de Suporte para 5, 6, 7 ou mais colaboradores com revezamento fluido e contínuo
             if (p >= 5) {
                 if (p === 6) {
-                    let supIndex1 = (i + 4) % p;
-                    let supIndex2 = (i + 5) % p;
+                    // Para 6 colaboradores, espaçamento dinâmico baseado na linha (i) para cobrir todas as pessoas sem repetições consecutivas
+                    let supIndex1 = (i * 2 + 4) % p;
+                    let supIndex2 = (supIndex1 + 2) % p;
+                    if (supIndex1 === supIndex2) supIndex2 = (supIndex2 + 1) % p;
+                    suporteVal = `${colabs[supIndex1]}, ${colabs[supIndex2]}`;
+                } else if (p >= 7) {
+                    // Para 7 colaboradores, revezamento circular contínuo pelas posições para evitar qualquer repetição consecutiva
+                    let supIndex1 = (i * 2 + 5) % p;
+                    let supIndex2 = (supIndex1 + 3) % p;
+                    if (supIndex1 === supIndex2) supIndex2 = (supIndex2 + 1) % p;
                     suporteVal = `${colabs[supIndex1]}, ${colabs[supIndex2]}`;
                 } else {
                     let supIndex = (i + 4) % p;
@@ -236,7 +243,7 @@ window.gerenciarStatus = async (id, valor) => {
     }
 };
 
-// Gerenciamento de Pausas Individuais com Redistribuição Correta
+// Gerenciamento de Pausas Individuais sem limite de quantidade e com redistribuição dinâmica
 window.alternarPausa = async (id, colaborador) => {
     const docRef = doc(db, "escala_ativa", id);
     const d = (await getDoc(docRef)).data();
