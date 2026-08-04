@@ -1,7 +1,7 @@
 import { db } from './firebaseConfig.js';
 import { collection, onSnapshot, doc, updateDoc, getDoc, setDoc, query, orderBy, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
 
-const SENHA_ADMIN = "1234";
+const SENHA_ADMIN = "1235";
 
 // Inicialização da Data
 document.getElementById("data-display").innerText = new Date().toLocaleDateString('pt-BR');
@@ -199,7 +199,7 @@ window.gerenciarStatus = async (id, valor) => {
     }
 };
 
-// Gerenciamento de Pausas Individuais
+// Gerenciamento de Pausas Individuais com Redistribuição Correta para Múltiplas Pausas
 window.alternarPausa = async (id, colaborador) => {
     const docRef = doc(db, "escala_ativa", id);
     const d = (await getDoc(docRef)).data();
@@ -214,21 +214,22 @@ window.alternarPausa = async (id, colaborador) => {
 
     let listaBruta = [d.original_pixbet, d.original_bds, d.original_ganhei];
     if (d.turno === "madrugada") {
-        // Na madrugada inclui também o ganhei para pegar todos os ativos da noite
         listaBruta.push(d.original_ganhei);
     } else {
         if (d.original_suporte && d.original_suporte !== "N/A") {
             d.original_suporte.split(',').forEach(s => listaBruta.push(s.trim()));
         }
+        if (d.original_discord && d.original_discord !== "TODOS") {
+            listaBruta.push(d.original_discord);
+        }
     }
-    const unicosOriginais = [...new Set(listaBruta.filter(n => n && n.trim() !== ""))];
+    const unicosOriginais = [...new Set(listaBruta.filter(n => n && n.trim() !== "" && n !== "TODOS" && n !== "N/A"))];
 
     const ativos = unicosOriginais.filter(n => !pausadosAtuais.includes(n));
     const qtdAtivos = ativos.length;
 
     let novaEscala = {};
     if (d.turno === "madrugada") {
-        // Redistribuição específica e segura para a madrugada com base nos ativos
         if (qtdAtivos === 0) {
             novaEscala = { pixbet: "Pausa", bds: "Pausa", ganhei: "Pausa" };
         } else if (qtdAtivos === 1) {
@@ -243,25 +244,25 @@ window.alternarPausa = async (id, colaborador) => {
         novaEscala.discord = "TODOS";
     } else {
         if (qtdAtivos === 0) {
-            novaEscala = { pixbet: "Pausa", bds: "Pausa", ganhei: "Pausa", suporte: "Pausa" };
+            novaEscala = { pixbet: "Pausa", bds: "Pausa", ganhei: "Pausa", suporte: "Pausa", discord: "Pausa" };
         } else if (qtdAtivos === 1) {
-            novaEscala = { pixbet: ativos[0], bds: ativos[0], ganhei: ativos[0], suporte: ativos[0] };
+            novaEscala = { pixbet: ativos[0], bds: ativos[0], ganhei: ativos[0], suporte: ativos[0], discord: ativos[0] };
         } else {
             let pIdx = 0;
             let bIdx = 1 % qtdAtivos;
             if (pIdx === bIdx && qtdAtivos > 1) bIdx = 1;
             let gIdx = 2 % qtdAtivos;
+            let dIdx = 3 % qtdAtivos;
+            let sIdx = 4 % qtdAtivos;
             
             novaEscala = {
                 pixbet: ativos[pIdx],
                 bds: ativos[bIdx],
-                ganhei: ativos[gIdx]
+                ganhei: ativos[gIdx],
+                discord: ativos[dIdx],
+                suporte: qtdAtivos >= 5 ? ativos[sIdx] : "N/A"
             };
-
-            let sIdx = 3 % qtdAtivos;
-            novaEscala.suporte = ativos[sIdx];
         }
-        novaEscala.discord = d.original_discord;
     }
 
     let statusTexto = pausadosAtuais.length > 0 ? "Pausa: " + pausadosAtuais.join(", ") : "Online";
