@@ -241,7 +241,7 @@ window.gerenciarStatus = async (id, valor) => {
     }
 };
 
-// Gerenciamento de Pausas Individuais ajustado para 4 ativos (suporte N/A) e 5 ativos (1 no suporte)
+// Gerenciamento de Pausas Individuais ajustado para distribuir entre os disponíveis fora das 4 casas principais
 window.alternarPausa = async (id, colaborador) => {
     const docRef = doc(db, "escala_ativa", id);
     const d = (await getDoc(docRef)).data();
@@ -296,14 +296,16 @@ window.alternarPausa = async (id, colaborador) => {
             if (pIdx === bIdx && qtdAtivos > 1) bIdx = 1;
             let gIdx = 2 % qtdAtivos;
             let dIdx = 3 % qtdAtivos;
-            let sIdx = 4 % qtdAtivos;
             
+            let alocadosNasQuatro = [ativos[pIdx], ativos[bIdx], ativos[gIdx], ativos[dIdx]];
+            let disponiveisParaSuporte = ativos.filter(n => !alocadosNasQuatro.includes(n));
+
             novaEscala = {
                 pixbet: ativos[pIdx],
                 bds: ativos[bIdx],
                 ganhei: ativos[gIdx],
                 discord: ativos[dIdx],
-                suporte: (temSuporteOriginal && qtdAtivos >= 5) ? ativos[sIdx % qtdAtivos] : "N/A"
+                suporte: (temSuporteOriginal && qtdAtivos >= 5 && disponiveisParaSuporte.length > 0) ? disponiveisParaSuporte[0] : "N/A"
             };
         }
     }
