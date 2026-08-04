@@ -7,6 +7,7 @@ const SENHA_ADMIN = "1235";
 document.getElementById("data-display").innerText = new Date().toLocaleDateString('pt-BR');
 
 const tbody = document.getElementById("escala-body");
+const theadTr = document.querySelector(".grade-table thead tr") || document.querySelector("thead tr");
 const flashText = document.getElementById("flash-text");
 const inputResponsavel = document.getElementById("responsavel-relatorio");
 
@@ -23,13 +24,36 @@ const flashRef = doc(db, "config", "flash_report");
 onSnapshot(flashRef, (docSnap) => { if (docSnap.exists()) flashText.value = docSnap.data().conteudo || ""; });
 flashText.addEventListener("input", async (e) => { await setDoc(flashRef, { conteudo: e.target.value }); });
 
-// Renderização Escala com colunas fixas e alinhadas corretamente
+// Renderização Escala com ajuste dinâmico do cabeçalho e colunas fixas
 onSnapshot(query(collection(db, "escala_ativa"), orderBy("ordem")), (snapshot) => {
     tbody.innerHTML = "";
+    
+    let temSuporteNaEscala = false;
+    snapshot.forEach((docSnap) => {
+        const d = docSnap.data();
+        if (d.suporte && d.suporte !== "N/A" && d.turno !== "madrugada") {
+            temSuporteNaEscala = true;
+        }
+    });
+
+    // Atualiza o cabeçalho da tabela dinamicamente para incluir ou ocultar a coluna Suporte
+    if (theadTr) {
+        theadTr.innerHTML = `
+            <th>HORÁRIO</th>
+            <th>PIXBET</th>
+            <th>BDS</th>
+            <th>DISCORD</th>
+            <th>GANHEI</th>
+            ${temSuporteNaEscala ? '<th>SUPORTE</th>' : ''}
+            <th>STATUS</th>
+        `;
+    }
+
     snapshot.forEach((docSnap) => {
         const d = docSnap.data();
         const turnoAtual = d.turno || "manha";
         const isMadrugada = turnoAtual === "madrugada";
+        const exibeSuporteLinha = !isMadrugada && d.suporte && d.suporte !== "N/A";
         
         let listaBruta = [d.original_pixbet, d.original_bds, d.original_discord, d.original_ganhei, d.original_suporte];
         let colabsIndividuais = [];
@@ -58,7 +82,7 @@ onSnapshot(query(collection(db, "escala_ativa"), orderBy("ordem")), (snapshot) =
         linhaHTML += renderBotao('discord', d.discord);
         linhaHTML += renderBotao('ganhei', d.ganhei);
         
-        if (!isMadrugada) {
+        if (exibeSuporteLinha) {
             linhaHTML += renderBotao('suporte', d.suporte);
         }
 
@@ -141,7 +165,7 @@ document.getElementById("btn-girar").addEventListener("click", async () => {
             ganheiVal = colabs[ganheiIndex];
             discordVal = colabs[discordIndex];
 
-            // Se tiver 4 ou menos pessoas, suporte fica N/A (vazio). Se tiver 5 ou mais, entra no sorteio.
+            // Se tiver 4 ou menos pessoas, suporte fica N/A. Se tiver 5 ou mais, entra no sorteio.
             if (p >= 5) {
                 if (p === 6) {
                     let supIndex1 = (i + 4) % p;
