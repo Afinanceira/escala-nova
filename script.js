@@ -169,17 +169,7 @@ document.getElementById("btn-girar").addEventListener("click", async () => {
                 let disponiveisParaSuporte = colabs.filter(n => !alocadosNasQuatro.includes(n));
 
                 if (disponiveisParaSuporte.length > 0) {
-                    let qtdSuporteNecessaria = p === 6 ? 1 : (p >= 7 ? 2 : 1);
-                    let suporteSelecionados = [];
-                    
-                    for (let sIdx = 0; sIdx < qtdSuporteNecessaria; sIdx++) {
-                        let indexEscolhido = (i + sIdx) % disponiveisParaSuporte.length;
-                        let candidato = disponiveisParaSuporte[indexEscolhido];
-                        if (!suporteSelecionados.includes(candidato)) {
-                            suporteSelecionados.push(candidato);
-                        }
-                    }
-                    suporteVal = suporteSelecionados.join(", ");
+                    suporteVal = disponiveisParaSuporte.join(", ");
                 } else {
                     suporteVal = "N/A";
                 }
@@ -244,7 +234,7 @@ window.gerenciarStatus = async (id, valor) => {
     }
 };
 
-// Gerenciamento de Pausas Individuais
+// Gerenciamento de Pausas Individuais com redistribuição total e suporte englobando todos os excedentes
 window.alternarPausa = async (id, colaborador) => {
     const docRef = doc(db, "escala_ativa", id);
     const d = (await getDoc(docRef)).data();
@@ -308,7 +298,7 @@ window.alternarPausa = async (id, colaborador) => {
                 bds: ativos[bIdx],
                 ganhei: ativos[gIdx],
                 discord: ativos[dIdx],
-                suporte: (temSuporteOriginal && qtdAtivos >= 5 && disponiveisParaSuporte.length > 0) ? disponiveisParaSuporte[0] : "N/A"
+                suporte: (temSuporteOriginal && qtdAtivos >= 5 && disponiveisParaSuporte.length > 0) ? disponiveisParaSuporte.join(", ") : "N/A"
             };
         }
     }
