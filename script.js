@@ -167,13 +167,11 @@ document.getElementById("btn-girar").addEventListener("click", async () => {
             // Regra universal de Suporte para 5, 6, 7 ou mais colaboradores com revezamento fluido e contínuo
             if (p >= 5) {
                 if (p === 6) {
-                    // Para 6 colaboradores, espaçamento dinâmico baseado na linha (i) para cobrir todas as pessoas sem repetições consecutivas
                     let supIndex1 = (i * 2 + 4) % p;
                     let supIndex2 = (supIndex1 + 2) % p;
                     if (supIndex1 === supIndex2) supIndex2 = (supIndex2 + 1) % p;
                     suporteVal = `${colabs[supIndex1]}, ${colabs[supIndex2]}`;
                 } else if (p >= 7) {
-                    // Para 7 colaboradores, revezamento circular contínuo pelas posições para evitar qualquer repetição consecutiva
                     let supIndex1 = (i * 2 + 5) % p;
                     let supIndex2 = (supIndex1 + 3) % p;
                     if (supIndex1 === supIndex2) supIndex2 = (supIndex2 + 1) % p;
@@ -243,7 +241,7 @@ window.gerenciarStatus = async (id, valor) => {
     }
 };
 
-// Gerenciamento de Pausas Individuais sem limite de quantidade e com redistribuição dinâmica
+// Gerenciamento de Pausas Individuais ajustado para 4 ativos (suporte N/A) e 5 ativos (1 no suporte)
 window.alternarPausa = async (id, colaborador) => {
     const docRef = doc(db, "escala_ativa", id);
     const d = (await getDoc(docRef)).data();
@@ -305,7 +303,7 @@ window.alternarPausa = async (id, colaborador) => {
                 bds: ativos[bIdx],
                 ganhei: ativos[gIdx],
                 discord: ativos[dIdx],
-                suporte: (temSuporteOriginal && qtdAtivos >= 5) ? ativos[sIdx] : "N/A"
+                suporte: (temSuporteOriginal && qtdAtivos >= 5) ? ativos[sIdx % qtdAtivos] : "N/A"
             };
         }
     }
