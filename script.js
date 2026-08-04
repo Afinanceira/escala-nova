@@ -23,13 +23,13 @@ const flashRef = doc(db, "config", "flash_report");
 onSnapshot(flashRef, (docSnap) => { if (docSnap.exists()) flashText.value = docSnap.data().conteudo || ""; });
 flashText.addEventListener("input", async (e) => { await setDoc(flashRef, { conteudo: e.target.value }); });
 
-// Renderização Escala
+// Renderização Escala com colunas fixas e alinhadas corretamente
 onSnapshot(query(collection(db, "escala_ativa"), orderBy("ordem")), (snapshot) => {
     tbody.innerHTML = "";
     snapshot.forEach((docSnap) => {
         const d = docSnap.data();
         const turnoAtual = d.turno || "manha";
-        const colunas = turnoAtual === "madrugada" ? ['pixbet', 'bds', 'discord', 'ganhei'] : ['pixbet', 'bds', 'discord', 'ganhei', 'suporte'];
+        const isMadrugada = turnoAtual === "madrugada";
         
         let listaBruta = [d.original_pixbet, d.original_bds, d.original_discord, d.original_ganhei, d.original_suporte];
         let colabsIndividuais = [];
@@ -44,14 +44,23 @@ onSnapshot(query(collection(db, "escala_ativa"), orderBy("ordem")), (snapshot) =
         const colabsUnicos = [...new Set(colabsIndividuais)];
         
         let linhaHTML = `<tr><td class="text-bold">${d.horario}</td>`;
-        colunas.forEach(col => {
-            const statusCheck = d[`checkin_${col}`] === 'OK' ? '#28a745' : '#1a2533';
-            let valorExibido = d[col] || "";
-            let acaoClick = (col === 'discord' && valorExibido === "TODOS") || valorExibido === "N/A" || valorExibido === "" ? "" : `onclick="window.checkin('${docSnap.id}', '${col}')"`;
-            let estiloCursor = (col === 'discord' && valorExibido === "TODOS") || valorExibido === "N/A" || valorExibido === "" ? "cursor: default;" : "";
-            
-            linhaHTML += `<td><button class="btn-nome-checkin" ${acaoClick} style="background:${statusCheck}; ${estiloCursor}">${valorExibido}</button></td>`;
-        });
+        
+        const renderBotao = (colName, val) => {
+            const statusCheck = d[`checkin_${colName}`] === 'OK' ? '#28a745' : '#1a2533';
+            let valorExibido = val || "";
+            let acaoClick = (colName === 'discord' && valorExibido === "TODOS") || valorExibido === "N/A" || valorExibido === "" ? "" : `onclick="window.checkin('${docSnap.id}', '${colName}')"`;
+            let estiloCursor = (colName === 'discord' && valorExibido === "TODOS") || valorExibido === "N/A" || valorExibido === "" ? "cursor: default;" : "";
+            return `<td><button class="btn-nome-checkin" ${acaoClick} style="background:${statusCheck}; ${estiloCursor}">${valorExibido}</button></td>`;
+        };
+
+        linhaHTML += renderBotao('pixbet', d.pixbet);
+        linhaHTML += renderBotao('bds', d.bds);
+        linhaHTML += renderBotao('discord', d.discord);
+        linhaHTML += renderBotao('ganhei', d.ganhei);
+        
+        if (!isMadrugada) {
+            linhaHTML += renderBotao('suporte', d.suporte);
+        }
 
         let statusTexto = d.status || 'Online';
         let corStatus = statusTexto.startsWith("Online") ? "#28a745" : "#dc3545";
@@ -115,7 +124,6 @@ document.getElementById("btn-girar").addEventListener("click", async () => {
         let pixbetVal, bdsVal, ganheiVal, discordVal, suporteVal = "N/A";
 
         if (turno === "madrugada") {
-            // Lógica original rigorosa da madrugada mantida intacta
             pixbetVal = colabs[i % p];
             bdsVal = colabs[(i + 1) % p];
             discordVal = "TODOS";
@@ -133,13 +141,18 @@ document.getElementById("btn-girar").addEventListener("click", async () => {
             ganheiVal = colabs[ganheiIndex];
             discordVal = colabs[discordIndex];
 
-            if (p === 6) {
-                let supIndex1 = (i + 4) % p;
-                let supIndex2 = (i + 5) % p;
-                suporteVal = `${colabs[supIndex1]}, ${colabs[supIndex2]}`;
-            } else if (p > 6) {
-                let supIndex = (i + 4) % p;
-                suporteVal = colabs[supIndex];
+            // Se tiver 4 ou menos pessoas, suporte fica N/A (vazio). Se tiver 5 ou mais, entra no sorteio.
+            if (p >= 5) {
+                if (p === 6) {
+                    let supIndex1 = (i + 4) % p;
+                    let supIndex2 = (i + 5) % p;
+                    suporteVal = `${colabs[supIndex1]}, ${colabs[supIndex2]}`;
+                } else {
+                    let supIndex = (i + 4) % p;
+                    suporteVal = colabs[supIndex];
+                }
+            } else {
+                suporteVal = "N/A";
             }
         }
 
@@ -199,7 +212,7 @@ window.gerenciarStatus = async (id, valor) => {
     }
 };
 
-// Gerenciamento de Pausas Individuais com Redistribuição Correta para Múltiplas Pausas
+// Gerenciamento de Pausas Individuais com Redistribuição Correta
 window.alternarPausa = async (id, colaborador) => {
     const docRef = doc(db, "escala_ativa", id);
     const d = (await getDoc(docRef)).data();
@@ -227,6 +240,7 @@ window.alternarPausa = async (id, colaborador) => {
 
     const ativos = unicosOriginais.filter(n => !pausadosAtuais.includes(n));
     const qtdAtivos = ativos.length;
+    const temSuporteOriginal = d.original_suporte && d.original_suporte !== "N/A";
 
     let novaEscala = {};
     if (d.turno === "madrugada") {
@@ -244,9 +258,9 @@ window.alternarPausa = async (id, colaborador) => {
         novaEscala.discord = "TODOS";
     } else {
         if (qtdAtivos === 0) {
-            novaEscala = { pixbet: "Pausa", bds: "Pausa", ganhei: "Pausa", suporte: "Pausa", discord: "Pausa" };
+            novaEscala = { pixbet: "Pausa", bds: "Pausa", ganhei: "Pausa", discord: "Pausa", suporte: temSuporteOriginal ? "Pausa" : "N/A" };
         } else if (qtdAtivos === 1) {
-            novaEscala = { pixbet: ativos[0], bds: ativos[0], ganhei: ativos[0], suporte: ativos[0], discord: ativos[0] };
+            novaEscala = { pixbet: ativos[0], bds: ativos[0], ganhei: ativos[0], discord: ativos[0], suporte: temSuporteOriginal ? ativos[0] : "N/A" };
         } else {
             let pIdx = 0;
             let bIdx = 1 % qtdAtivos;
@@ -260,7 +274,7 @@ window.alternarPausa = async (id, colaborador) => {
                 bds: ativos[bIdx],
                 ganhei: ativos[gIdx],
                 discord: ativos[dIdx],
-                suporte: qtdAtivos >= 5 ? ativos[sIdx] : "N/A"
+                suporte: (temSuporteOriginal && qtdAtivos >= 5) ? ativos[sIdx] : "N/A"
             };
         }
     }
