@@ -101,7 +101,7 @@ onSnapshot(query(collection(db, "escala_ativa"), orderBy("ordem")), (snapshot) =
     });
 });
 
-// Botão Girar Rodízio onde quem está alocado nas 4 casas principais NÃO participa do suporte
+// Botão Girar Rodízio com alocação correta e excludente
 document.getElementById("btn-girar").addEventListener("click", async () => {
     const turno = document.getElementById("select-turno").value;
     const horaInicio = turno === "manha" ? 7 : (turno === "noite" ? 15 : 23);
@@ -169,24 +169,17 @@ document.getElementById("btn-girar").addEventListener("click", async () => {
                 let disponiveisParaSuporte = colabs.filter(n => !alocadosNasQuatro.includes(n));
 
                 if (disponiveisParaSuporte.length > 0) {
-                    if (p === 6) {
-                        let supIndex1 = (i * 2 + 4) % disponiveisParaSuporte.length;
-                        let supIndex2 = (supIndex1 + 1) % disponiveisParaSuporte.length;
-                        if (supIndex1 === supIndex2 && disponiveisParaSuporte.length > 1) {
-                            supIndex2 = (supIndex2 + 1) % disponiveisParaSuporte.length;
+                    let qtdSuporteNecessaria = p === 6 ? 1 : (p >= 7 ? 2 : 1);
+                    let suporteSelecionados = [];
+                    
+                    for (let sIdx = 0; sIdx < qtdSuporteNecessaria; sIdx++) {
+                        let indexEscolhido = (i + sIdx) % disponiveisParaSuporte.length;
+                        let candidato = disponiveisParaSuporte[indexEscolhido];
+                        if (!suporteSelecionados.includes(candidato)) {
+                            suporteSelecionados.push(candidato);
                         }
-                        suporteVal = disponiveisParaSuporte.length > 1 ? `${disponiveisParaSuporte[supIndex1]}, ${disponiveisParaSuporte[supIndex2]}` : disponiveisParaSuporte[0];
-                    } else if (p >= 7) {
-                        let supIndex1 = (i * 2 + 5) % disponiveisParaSuporte.length;
-                        let supIndex2 = (supIndex1 + 1) % disponiveisParaSuporte.length;
-                        if (supIndex1 === supIndex2 && disponiveisParaSuporte.length > 1) {
-                            supIndex2 = (supIndex2 + 1) % disponiveisParaSuporte.length;
-                        }
-                        suporteVal = disponiveisParaSuporte.length > 1 ? `${disponiveisParaSuporte[supIndex1]}, ${disponiveisParaSuporte[supIndex2]}` : disponiveisParaSuporte[0];
-                    } else {
-                        let supIndex = i % disponiveisParaSuporte.length;
-                        suporteVal = disponiveisParaSuporte[supIndex];
                     }
+                    suporteVal = suporteSelecionados.join(", ");
                 } else {
                     suporteVal = "N/A";
                 }
@@ -251,7 +244,7 @@ window.gerenciarStatus = async (id, valor) => {
     }
 };
 
-// Gerenciamento de Pausas Individuais onde quem está alocado nas 4 casas principais NÃO participa do suporte
+// Gerenciamento de Pausas Individuais
 window.alternarPausa = async (id, colaborador) => {
     const docRef = doc(db, "escala_ativa", id);
     const d = (await getDoc(docRef)).data();
