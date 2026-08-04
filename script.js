@@ -23,17 +23,26 @@ const flashRef = doc(db, "config", "flash_report");
 onSnapshot(flashRef, (docSnap) => { if (docSnap.exists()) flashText.value = docSnap.data().conteudo || ""; });
 flashText.addEventListener("input", async (e) => { await setDoc(flashRef, { conteudo: e.target.value }); });
 
-// Renderização Escala com suporte a Pausas e Realocação Direta
+// Renderização Escala com suporte a Pausas Individuais e Categoria Suporte
 onSnapshot(query(collection(db, "escala_ativa"), orderBy("ordem")), (snapshot) => {
     tbody.innerHTML = "";
     snapshot.forEach((docSnap) => {
         const d = docSnap.data();
         const turnoAtual = d.turno || "manha";
-        // Se for manhã ou noite, inclui a coluna 'suporte'. Na madrugada, apenas as 4 principais.
         const colunas = turnoAtual === "madrugada" ? ['pixbet', 'bds', 'discord', 'ganhei'] : ['pixbet', 'bds', 'discord', 'ganhei', 'suporte'];
         
-        const colabsOriginais = [d.original_pixbet, d.original_bds, d.original_discord, d.original_ganhei, d.original_suporte].filter(n => n && n.trim() !== "" && n !== "TODOS" && n !== "N/A");
-        const colabsUnicos = [...new Set(colabsOriginais)];
+        // Extrai cada colaborador de forma individual, quebrando qualquer vírgula para separar quem divide o suporte
+        let listaBruta = [d.original_pixbet, d.original_bds, d.original_discord, d.original_ganhei, d.original_suporte];
+        let colabsIndividuais = [];
+        listaBruta.forEach(item => {
+            if (item && item.trim() !== "" && item !== "TODOS" && item !== "N/A") {
+                item.split(',').forEach(nome => {
+                    let nomeLimpo = nome.trim();
+                    if (nomeLimpo) colabsIndividuais.push(nomeLimpo);
+                });
+            }
+        });
+        const colabsUnicos = [...new Set(colabsIndividuais)];
         
         let linhaHTML = `<tr><td class="text-bold">${d.horario}</td>`;
         colunas.forEach(col => {
@@ -124,7 +133,6 @@ document.getElementById("btn-girar").addEventListener("click", async () => {
             discordVal = "TODOS";
         } else {
             discordVal = colabs[discordIndex];
-            // Se houver 6 pessoas, sorteia 2 para suporte de forma justa rotativa
             if (p === 6) {
                 let supIndex1 = (i + 4) % p;
                 let supIndex2 = (i + 5) % p;
@@ -191,7 +199,7 @@ window.gerenciarStatus = async (id, valor) => {
     }
 };
 
-// Gerenciamento de Pausas com Realocação estricta apenas entre os ativos disponíveis no horário
+// Gerenciamento de Pausas Individuais com Redistribuição Estrita Apenas Entre os Ativos
 window.alternarPausa = async (id, colaborador) => {
     const docRef = doc(db, "escala_ativa", id);
     const d = (await getDoc(docRef)).data();
@@ -204,15 +212,14 @@ window.alternarPausa = async (id, colaborador) => {
         pausadosAtuais.push(colaborador);
     }
 
-    // Pega todos os originais do turno (exceto N/A ou vazios)
-    const todosOriginais = [d.original_pixbet, d.original_bds, d.original_ganhei];
+    // Coleta todos os colaboradores únicos do turno de forma totalmente individual
+    let listaBruta = [d.original_pixbet, d.original_bds, d.original_ganhei];
     if (d.turno !== "madrugada" && d.original_suporte && d.original_suporte !== "N/A") {
-        // Se suporte tiver mais de um nome (ex: 6 pessoas), separa por vírgula
-        d.original_suporte.split(',').forEach(s => todosOriginais.push(s.trim()));
+        d.original_suporte.split(',').forEach(s => listaBruta.push(s.trim()));
     }
-    const unicosOriginais = [...new Set(todosOriginais.filter(n => n && n.trim() !== ""))];
+    const unicosOriginais = [...new Set(listaBruta.filter(n => n && n.trim() !== ""))];
 
-    // Filtra quem está trabalhando (não está pausado)
+    // Filtra quem está ativo (não está pausado)
     const ativos = unicosOriginais.filter(n => !pausadosAtuais.includes(n));
     const qtdAtivos = ativos.length;
 
@@ -222,7 +229,7 @@ window.alternarPausa = async (id, colaborador) => {
     } else if (qtdAtivos === 1) {
         novaEscala = { pixbet: ativos[0], bds: ativos[0], ganhei: ativos[0], suporte: ativos[0] };
     } else {
-        // Redistribui dinamicamente apenas entre os ativos disponíveis no horário
+        // Redistribui dinamicamente entre os ativos disponíveis
         let pIdx = 0;
         let bIdx = 1 % qtdAtivos;
         if (pIdx === bIdx && qtdAtivos > 1) bIdx = 1;
@@ -240,7 +247,6 @@ window.alternarPausa = async (id, colaborador) => {
         }
     }
 
-    // Discord mantém regra própria (TODOS na madrugada ou original nos demais)
     novaEscala.discord = d.original_discord;
 
     let statusTexto = pausadosAtuais.length > 0 ? "Pausa: " + pausadosAtuais.join(", ") : "Online";
