@@ -1,7 +1,7 @@
 import { db } from './firebaseConfig.js';
 import { collection, onSnapshot, doc, updateDoc, getDoc, setDoc, query, orderBy, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
 
-const SENHA_ADMIN = "1235";
+const SENHA_ADMIN = "253017";
 
 // Inicialização da Data
 document.getElementById("data-display").innerText = new Date().toLocaleDateString('pt-BR');
@@ -101,7 +101,7 @@ onSnapshot(query(collection(db, "escala_ativa"), orderBy("ordem")), (snapshot) =
     });
 });
 
-// Botão Girar Rodízio com regra estrita de suporte
+// Botão Girar Rodízio com regra estrita de suporte e separação Pixbet/BDS
 document.getElementById("btn-girar").addEventListener("click", async () => {
     const turno = document.getElementById("select-turno").value;
     const horaInicio = turno === "manha" ? 7 : (turno === "noite" ? 15 : 23);
@@ -242,7 +242,7 @@ window.gerenciarStatus = async (id, valor) => {
     }
 };
 
-// Gerenciamento de Pausas Individuais com redistribuição justa e sem duplicidade excessiva
+// Gerenciamento de Pausas com redistribuição justa, divisão exata de 2 categorias e separação estrita Pixbet/BDS
 window.alternarPausa = async (id, colaborador) => {
     const docRef = doc(db, "escala_ativa", id);
     const d = (await getDoc(docRef)).data();
@@ -286,19 +286,46 @@ window.alternarPausa = async (id, colaborador) => {
         }
         novaEscala.discord = "TODOS";
     } else {
-        if (qtdAtivos <= 4) {
-            // Se restarem 4 ou menos ativos, distribuímos de forma justa e rotativa nas 4 casas sem repetir ninguém se possível
+        if (qtdAtivos === 2) {
+            // Regra específica: exatos 2 ativos cobrindo as 4 casas -> cada um pega 2 colunas, separando Pixbet e BDS obrigatoriamente
+            // Colaborador 1 fica com Pixbet + Discord | Colaborador 2 fica com BDS + Ganhei
             novaEscala = {
-                pixbet: qtdAtivos > 0 ? ativos[0 % qtdAtivos] : "Pausa",
-                bds: qtdAtivos > 1 ? ativos[1 % qtdAtivos] : (qtdAtivos > 0 ? ativos[0] : "Pausa"),
-                discord: qtdAtivos > 2 ? ativos[2 % qtdAtivos] : (qtdAtivos > 1 ? ativos[1] : (qtdAtivos > 0 ? ativos[0] : "Pausa")),
-                ganhei: qtdAtivos > 3 ? ativos[3 % qtdAtivos] : (qtdAtivos > 2 ? ativos[2] : (qtdAtivos > 1 ? ativos[1] : (qtdAtivos > 0 ? ativos[0] : "Pausa"))),
+                pixbet: ativos[0],
+                bds: ativos[1],
+                discord: ativos[0],
+                ganhei: ativos[1],
+                suporte: "N/A"
+            };
+        } else if (qtdAtivos <= 4) {
+            let offset = 0;
+            let pix, bd, disc, ganh;
+            // Garante loop seguro para evitar Pixbet e BDS juntos caso qtdAtivos seja 3 ou 4
+            do {
+                pix = ativos[offset % qtdAtivos];
+                bd = ativos[(offset + 1) % qtdAtivos];
+                disc = ativos[(offset + 2) % qtdAtivos];
+                ganh = ativos[(offset + 3) % qtdAtivos];
+                offset++;
+            } while (pix === bd && qtdAtivos > 1);
+
+            novaEscala = {
+                pixbet: pix,
+                bds: bd,
+                discord: disc,
+                ganhei: ganh,
                 suporte: "N/A"
             };
         } else {
-            // Se restarem 5 ou mais ativos, 4 vão para as casas de forma rotativa limpa e os excedentes vão para o suporte
             let suporteAtivos = ativos.slice(4);
             let casaAtivos = ativos.slice(0, 4);
+
+            let pix = casaAtivos[0];
+            let bd = casaAtivos[1];
+            if (pix === bd && casaAtivos.length > 1) {
+                let temp = casaAtivos[1];
+                casaAtivos[1] = casaAtivos[2] || casaAtivos[0];
+                casaAtivos[2] = temp;
+            }
 
             novaEscala = {
                 pixbet: casaAtivos[0],
