@@ -101,7 +101,7 @@ onSnapshot(query(collection(db, "escala_ativa"), orderBy("ordem")), (snapshot) =
     });
 });
 
-// Botão Girar Rodízio com balanceamento anti-repetição no suporte e distribuição justa
+// Botão Girar Rodízio com regra estricta de suporte (só abre se houver 5+ ativos; se forem 4, suporte é N/A)
 document.getElementById("btn-girar").addEventListener("click", async () => {
     const turno = document.getElementById("select-turno").value;
     const horaInicio = turno === "manha" ? 7 : (turno === "noite" ? 15 : 23);
@@ -138,7 +138,6 @@ document.getElementById("btn-girar").addEventListener("click", async () => {
     const snaps = await getDocs(collection(db, "escala_ativa"));
     for (const s of snaps.docs) await deleteDoc(doc(db, "escala_ativa", s.id));
     
-    // Rastreamento estrito de quantas vezes cada colaborador fez suporte e quem fez na hora anterior
     let totalVezesSuporte = {};
     colabs.forEach(c => totalVezesSuporte[c] = 0);
     let suporteHoraAnterior = [];
@@ -151,50 +150,40 @@ document.getElementById("btn-girar").addEventListener("click", async () => {
         let pixbetVal, bdsVal, ganheiVal, discordVal, suporteVal = "N/A";
 
         if (turno === "madrugada") {
-            // Madrugada: 3 casas + Discord fixo (TODOS), sem suporte
             pixbetVal = colabs[i % p];
             bdsVal = colabs[(i + 1) % p];
             discordVal = "TODOS";
             ganheiVal = colabs[(i + 2) % p];
         } else {
-            // Turnos normais com Suporte Inteligente e Justo
             if (p >= 5) {
-                let qtdSuporteNecessaria = p === 6 ? 2 : (p >= 7 ? p - 4 : 1);
+                // Se p >= 5, calculamos quem vai para o suporte (excedentes além de 4)
+                let qtdSuporteNecessaria = p - 4;
                 
-                // Ordena os colaboradores priorizando quem MENIS vezes fez suporte e NÃO fez na hora anterior
                 let candidatosOrdenados = [...colabs].sort((a, b) => {
                     let aFezAntes = suporteHoraAnterior.includes(a) ? 1 : 0;
                     let bFezAntes = suporteHoraAnterior.includes(b) ? 1 : 0;
-                    if (aFezAntes !== bFezAntes) return aFezAntes - bFezAntes; // Quem fez antes vai para o fim da fila
-                    return totalVezesSuporte[a] - totalVezesSuporte[b]; // Quem tem menos suporte total vai primeiro
+                    if (aFezAntes !== bFezAntes) return aFezAntes - bFezAntes;
+                    return totalVezesSuporte[a] - totalVezesSuporte[b];
                 });
 
-                // Seleciona quem vai para o suporte nesta hora
-                let suporteSelecionados = caturarEquipeSuporte(candidatosOrdenados, qtdSuporteNecessaria);
+                let suporteSelecionados = candidatosOrdenados.slice(0, qtdSuporteNecessaria);
                 suporteVal = suporteSelecionados.join(", ");
                 suporteHoraAnterior = suporteSelecionados;
                 suporteSelecionados.forEach(c => totalVezesSuporte[c]++);
 
-                // O restante dos colaboradores vai para as 4 casas principais de forma rotativa
                 let disponiveisCasas = colabs.filter(n => !suporteSelecionados.includes(n));
-                // Garante que temos pelo menos 4 para as casas (se faltar, pega emprestado)
-                while (disponiveisCasas.length < 4 && colabs.length >= 4) {
-                    let extra = colabs.find(c => !disponiveisCasas.includes(c));
-                    if (extra) disponiveisCasas.push(extra);
-                }
-
-                // Distribui nas 4 casas mudando o offset a cada hora para garantir que ninguém fique preso na mesma casa
                 let offset = i % disponiveisCasas.length;
                 pixbetVal = disponiveisCasas[offset % disponiveisCasas.length];
                 bdsVal = disponiveisCasas[(offset + 1) % disponiveisCasas.length];
                 discordVal = disponiveisCasas[(offset + 2) % disponiveisCasas.length];
                 ganheiVal = disponiveisCasas[(offset + 3) % disponiveisCasas.length];
             } else {
-                // Se houver menos de 5 pessoas, não há suporte
-                pixbetVal = colabs[i % p];
-                bdsVal = colabs[(i + 1) % p];
-                discordVal = colabs[(i + 2) % p];
-                ganheiVal = colabs[(i + 3) % p];
+                // Se p for 4 ou menos, suporte é N/A e as 4 pessoas rodam nas 4 casas
+                let offset = i % p;
+                pixbetVal = colabs[offset % p];
+                bdsVal = colabs[(offset + 1) % p];
+                discordVal = colabs[(offset + 2) % p];
+                ganheiVal = colabs[(offset + 3) % p];
                 suporteVal = "N/A";
             }
         }
@@ -221,15 +210,6 @@ document.getElementById("btn-girar").addEventListener("click", async () => {
     await setDoc(logRef, dadosLog);
     alert(`Escala gerada e relatório atribuído a ${responsavelSorteado}!`);
 });
-
-// Função auxiliar para selecionar os colaboradores do suporte de forma limpa
-function caturarEquipeSuporte(listaOrdenada, qtd) {
-    let escolhidos = [];
-    for (let i = 0; i < listaOrdenada.length && escolhidos.length < qtd; i++) {
-        escolhidos.push(listaOrdenada[i]);
-    }
-    return escolhidos;
-}
 
 // Botão Limpar Escala
 document.getElementById("btn-limpar").addEventListener("click", async () => {
@@ -264,7 +244,7 @@ window.gerenciarStatus = async (id, valor) => {
     }
 };
 
-// Gerenciamento de Pausas Individuais com redistribuição dinâmica justa
+// Gerenciamento de Pausas Individuais: se restarem 4 ativos, suporte vira N/A e prioriza as 4 casas
 window.alternarPausa = async (id, colaborador) => {
     const docRef = doc(db, "escala_ativa", id);
     const d = (await getDoc(docRef)).data();
@@ -292,7 +272,6 @@ window.alternarPausa = async (id, colaborador) => {
 
     const ativos = unicosOriginais.filter(n => !pausadosAtuais.includes(n));
     const qtdAtivos = ativos.length;
-    const temSuporteOriginal = d.original_suporte && d.original_suporte !== "N/A";
 
     let novaEscala = {};
     if (d.turno === "madrugada") {
@@ -309,26 +288,26 @@ window.alternarPausa = async (id, colaborador) => {
         }
         novaEscala.discord = "TODOS";
     } else {
-        if (qtdAtivos === 0) {
-            novaEscala = { pixbet: "Pausa", bds: "Pausa", ganhei: "Pausa", discord: "Pausa", suporte: temSuporteOriginal ? "Pausa" : "N/A" };
-        } else if (qtdAtivos === 1) {
-            novaEscala = { pixbet: ativos[0], bds: ativos[0], ganhei: ativos[0], discord: ativos[0], suporte: temSuporteOriginal ? ativos[0] : "N/A" };
+        // Regra de Corte: Se restarem 4 ou menos ativos, o suporte fica N/A e as 4 vagas vão para as casas principais
+        if (qtdAtivos <= 4) {
+            novaEscala = {
+                pixbet: qtdAtivos > 0 ? ativos[0 % qtdAtivos] : "Pausa",
+                bds: qtdAtivos > 1 ? ativos[1 % qtdAtivos] : (qtdAtivos > 0 ? ativos[0] : "Pausa"),
+                discord: qtdAtivos > 2 ? ativos[2 % qtdAtivos] : (qtdAtivos > 0 ? ativos[0] : "Pausa"),
+                ganhei: qtdAtivos > 3 ? ativos[3 % qtdAtivos] : (qtdAtivos > 0 ? ativos[0] : "Pausa"),
+                suporte: "N/A"
+            };
         } else {
-            let pIdx = 0;
-            let bIdx = 1 % qtdAtivos;
-            if (pIdx === bIdx && qtdAtivos > 1) bIdx = 1;
-            let gIdx = 2 % qtdAtivos;
-            let dIdx = 3 % qtdAtivos;
-            
-            let alocadosNasQuatro = [ativos[pIdx], ativos[bIdx], ativos[gIdx], ativos[dIdx]];
-            let disponiveisParaSuporte = ativos.filter(n => !alocadosNasQuatro.includes(n));
+            // Se restarem 5 ou mais ativos, 4 vão para as casas e os excedentes vão para o suporte
+            let suporteAtivos = ativos.slice(4);
+            let casaAtivos = ativos.slice(0, 4);
 
             novaEscala = {
-                pixbet: ativos[pIdx],
-                bds: ativos[bIdx],
-                ganhei: ativos[gIdx],
-                discord: ativos[dIdx],
-                suporte: (temSuporteOriginal && qtdAtivos >= 5 && disponiveisParaSuporte.length > 0) ? disponiveisParaSuporte.join(", ") : "N/A"
+                pixbet: casaAtivos[0],
+                bds: casaAtivos[1],
+                discord: casaAtivos[2],
+                ganhei: casaAtivos[3],
+                suporte: suporteAtivos.join(", ")
             };
         }
     }
