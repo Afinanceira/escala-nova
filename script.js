@@ -101,7 +101,7 @@ onSnapshot(query(collection(db, "escala_ativa"), orderBy("ordem")), (snapshot) =
     });
 });
 
-// Botão Girar Rodízio com balanceamento estrito e revezamento justo do suporte (evitando repetição excessiva da mesma pessoa)
+// Botão Girar Rodízio com balanceamento anti-repetição no suporte e distribuição justa
 document.getElementById("btn-girar").addEventListener("click", async () => {
     const turno = document.getElementById("select-turno").value;
     const horaInicio = turno === "manha" ? 7 : (turno === "noite" ? 15 : 23);
@@ -138,9 +138,10 @@ document.getElementById("btn-girar").addEventListener("click", async () => {
     const snaps = await getDocs(collection(db, "escala_ativa"));
     for (const s of snaps.docs) await deleteDoc(doc(db, "escala_ativa", s.id));
     
-    // Rastreamento de quantas vezes cada colaborador já ficou no suporte para garantir o revezamento justo
-    let contadorSuporte = {};
-    colabs.forEach(c => contadorSuporte[c] = 0);
+    // Rastreamento estrito de quantas vezes cada colaborador fez suporte e quem fez na hora anterior
+    let totalVezesSuporte = {};
+    colabs.forEach(c => totalVezesSuporte[c] = 0);
+    let suporteHoraAnterior = [];
 
     for (let i = 0; i < 8; i++) {
         let hora = (horaInicio + i) % 24;
@@ -150,43 +151,50 @@ document.getElementById("btn-girar").addEventListener("click", async () => {
         let pixbetVal, bdsVal, ganheiVal, discordVal, suporteVal = "N/A";
 
         if (turno === "madrugada") {
+            // Madrugada: 3 casas + Discord fixo (TODOS), sem suporte
             pixbetVal = colabs[i % p];
             bdsVal = colabs[(i + 1) % p];
             discordVal = "TODOS";
             ganheiVal = colabs[(i + 2) % p];
         } else {
-            let pixIndex = i % p;
-            let bdsIndex = (i + 1) % p;
-            if (p > 1 && pixIndex === bdsIndex) bdsIndex = (bdsIndex + 1) % p;
-
-            let discordIndex = (i + 2) % p;
-            let ganheiIndex = (i + 3) % p;
-
-            pixbetVal = colabs[pixIndex];
-            bdsVal = colabs[bdsIndex];
-            ganheiVal = colabs[ganheiIndex];
-            discordVal = colabs[discordIndex];
-
-            // Regra de Suporte Balanceada: Apenas quem NÃO está nas 4 casas principais participa
+            // Turnos normais com Suporte Inteligente e Justo
             if (p >= 5) {
-                let alocadosNasQuatro = [pixbetVal, bdsVal, discordVal, ganheiVal];
-                let disponiveisParaSuporte = colabs.filter(n => !alocadosNasQuatro.includes(n));
+                let qtdSuporteNecessaria = p === 6 ? 2 : (p >= 7 ? p - 4 : 1);
+                
+                // Ordena os colaboradores priorizando quem MENIS vezes fez suporte e NÃO fez na hora anterior
+                let candidatosOrdenados = [...colabs].sort((a, b) => {
+                    let aFezAntes = suporteHoraAnterior.includes(a) ? 1 : 0;
+                    let bFezAntes = suporteHoraAnterior.includes(b) ? 1 : 0;
+                    if (aFezAntes !== bFezAntes) return aFezAntes - bFezAntes; // Quem fez antes vai para o fim da fila
+                    return totalVezesSuporte[a] - totalVezesSuporte[b]; // Quem tem menos suporte total vai primeiro
+                });
 
-                if (disponiveisParaSuporte.length > 0) {
-                    // Ordena os disponíveis pelo histórico de suporte (quem menos ficou vai primeiro) para alternar e evitar repetição exaustiva
-                    disponiveisParaSuporte.sort((a, b) => contadorSuporte[a] - contadorSuporte[b]);
-                    
-                    // Se houver mais de uma vaga no suporte (ex: 6 ou 7 pessoas no total), seleciona os que menos ficaram
-                    let qtdSuporteNecessaria = p === 6 ? 1 : (p >= 7 ? Math.min(2, disponiveisParaSuporte.length) : 1);
-                    // Nota: Se p=6, sobram 2 pessoas nas 6 pessoas totais, mas as 4 casas ocupam 4, logo restam 2 pessoas livres. Se quisermos colocar todas as sobras, ajustamos para pegar todos os disponíveis:
-                    let suporteSelecionados = disponiveisParaSuporte; // absorve todos os excedentes que sobraram fora das 4 casas
+                // Seleciona quem vai para o suporte nesta hora
+                let suporteSelecionados = caturarEquipeSuporte(candidatosOrdenados, qtdSuporteNecessaria);
+                suporteVal = suporteSelecionados.join(", ");
+                suporteHoraAnterior = suporteSelecionados;
+                suporteSelecionados.forEach(c => totalVezesSuporte[c]++);
 
-                    suporteSelecionados.forEach(c => contadorSuporte[c]++);
-                    suporteVal = suporteSelecionados.join(", ");
-                } else {
-                    suporteVal = "N/A";
+                // O restante dos colaboradores vai para as 4 casas principais de forma rotativa
+                let disponiveisCasas = colabs.filter(n => !suporteSelecionados.includes(n));
+                // Garante que temos pelo menos 4 para as casas (se faltar, pega emprestado)
+                while (disponiveisCasas.length < 4 && colabs.length >= 4) {
+                    let extra = colabs.find(c => !disponiveisCasas.includes(c));
+                    if (extra) disponiveisCasas.push(extra);
                 }
+
+                // Distribui nas 4 casas mudando o offset a cada hora para garantir que ninguém fique preso na mesma casa
+                let offset = i % disponiveisCasas.length;
+                pixbetVal = disponiveisCasas[offset % disponiveisCasas.length];
+                bdsVal = disponiveisCasas[(offset + 1) % disponiveisCasas.length];
+                discordVal = disponiveisCasas[(offset + 2) % disponiveisCasas.length];
+                ganheiVal = disponiveisCasas[(offset + 3) % disponiveisCasas.length];
             } else {
+                // Se houver menos de 5 pessoas, não há suporte
+                pixbetVal = colabs[i % p];
+                bdsVal = colabs[(i + 1) % p];
+                discordVal = colabs[(i + 2) % p];
+                ganheiVal = colabs[(i + 3) % p];
                 suporteVal = "N/A";
             }
         }
@@ -213,6 +221,15 @@ document.getElementById("btn-girar").addEventListener("click", async () => {
     await setDoc(logRef, dadosLog);
     alert(`Escala gerada e relatório atribuído a ${responsavelSorteado}!`);
 });
+
+// Função auxiliar para selecionar os colaboradores do suporte de forma limpa
+function caturarEquipeSuporte(listaOrdenada, qtd) {
+    let escolhidos = [];
+    for (let i = 0; i < listaOrdenada.length && escolhidos.length < qtd; i++) {
+        escolhidos.push(listaOrdenada[i]);
+    }
+    return escolhidos;
+}
 
 // Botão Limpar Escala
 document.getElementById("btn-limpar").addEventListener("click", async () => {
@@ -247,7 +264,7 @@ window.gerenciarStatus = async (id, valor) => {
     }
 };
 
-// Gerenciamento de Pausas Individuais com redistribuição correta
+// Gerenciamento de Pausas Individuais com redistribuição dinâmica justa
 window.alternarPausa = async (id, colaborador) => {
     const docRef = doc(db, "escala_ativa", id);
     const d = (await getDoc(docRef)).data();
