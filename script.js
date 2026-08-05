@@ -1,7 +1,7 @@
 import { db } from './firebaseConfig.js';
 import { collection, onSnapshot, doc, updateDoc, getDoc, setDoc, query, orderBy, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
 
-const SENHA_ADMIN = "1235";
+const SENHA_ADMIN = "253017";
 
 // Inicialização da Data
 document.getElementById("data-display").innerText = new Date().toLocaleDateString('pt-BR');
