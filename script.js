@@ -1,7 +1,7 @@
 import { db } from './firebaseConfig.js';
 import { collection, onSnapshot, doc, updateDoc, getDoc, setDoc, query, orderBy, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
 
-const SENHA_ADMIN = "253017";
+const SENHA_ADMIN = "1235";
 
 // Inicialização da Data
 document.getElementById("data-display").innerText = new Date().toLocaleDateString('pt-BR');
@@ -101,7 +101,7 @@ onSnapshot(query(collection(db, "escala_ativa"), orderBy("ordem")), (snapshot) =
     });
 });
 
-// Botão Girar Rodízio com regra estricta de suporte (só abre se houver 5+ ativos; se forem 4, suporte é N/A)
+// Botão Girar Rodízio com regra estrita de suporte
 document.getElementById("btn-girar").addEventListener("click", async () => {
     const turno = document.getElementById("select-turno").value;
     const horaInicio = turno === "manha" ? 7 : (turno === "noite" ? 15 : 23);
@@ -156,7 +156,6 @@ document.getElementById("btn-girar").addEventListener("click", async () => {
             ganheiVal = colabs[(i + 2) % p];
         } else {
             if (p >= 5) {
-                // Se p >= 5, calculamos quem vai para o suporte (excedentes além de 4)
                 let qtdSuporteNecessaria = p - 4;
                 
                 let candidatosOrdenados = [...colabs].sort((a, b) => {
@@ -178,7 +177,6 @@ document.getElementById("btn-girar").addEventListener("click", async () => {
                 discordVal = disponiveisCasas[(offset + 2) % disponiveisCasas.length];
                 ganheiVal = disponiveisCasas[(offset + 3) % disponiveisCasas.length];
             } else {
-                // Se p for 4 ou menos, suporte é N/A e as 4 pessoas rodam nas 4 casas
                 let offset = i % p;
                 pixbetVal = colabs[offset % p];
                 bdsVal = colabs[(offset + 1) % p];
@@ -223,7 +221,7 @@ document.getElementById("btn-limpar").addEventListener("click", async () => {
 // Funções Globais
 window.checkin = async (id, col) => {
     const docRef = doc(db, "escala_ativa", id);
-    const d = (await getDoc(docRef)).data();
+    const d = (await docRef.get?.() || await getDoc(docRef)).data();
     if ((col === 'discord' && d.discord === "TODOS") || d[col] === "N/A" || !d[col]) return;
     await updateDoc(docRef, { [`checkin_${col}`]: d[`checkin_${col}`] === 'OK' ? 'Pendente' : 'OK' });
 };
@@ -244,7 +242,7 @@ window.gerenciarStatus = async (id, valor) => {
     }
 };
 
-// Gerenciamento de Pausas Individuais: se restarem 4 ativos, suporte vira N/A e prioriza as 4 casas
+// Gerenciamento de Pausas Individuais com redistribuição justa e sem duplicidade excessiva
 window.alternarPausa = async (id, colaborador) => {
     const docRef = doc(db, "escala_ativa", id);
     const d = (await getDoc(docRef)).data();
@@ -288,17 +286,17 @@ window.alternarPausa = async (id, colaborador) => {
         }
         novaEscala.discord = "TODOS";
     } else {
-        // Regra de Corte: Se restarem 4 ou menos ativos, o suporte fica N/A e as 4 vagas vão para as casas principais
         if (qtdAtivos <= 4) {
+            // Se restarem 4 ou menos ativos, distribuímos de forma justa e rotativa nas 4 casas sem repetir ninguém se possível
             novaEscala = {
                 pixbet: qtdAtivos > 0 ? ativos[0 % qtdAtivos] : "Pausa",
                 bds: qtdAtivos > 1 ? ativos[1 % qtdAtivos] : (qtdAtivos > 0 ? ativos[0] : "Pausa"),
-                discord: qtdAtivos > 2 ? ativos[2 % qtdAtivos] : (qtdAtivos > 0 ? ativos[0] : "Pausa"),
-                ganhei: qtdAtivos > 3 ? ativos[3 % qtdAtivos] : (qtdAtivos > 0 ? ativos[0] : "Pausa"),
+                discord: qtdAtivos > 2 ? ativos[2 % qtdAtivos] : (qtdAtivos > 1 ? ativos[1] : (qtdAtivos > 0 ? ativos[0] : "Pausa")),
+                ganhei: qtdAtivos > 3 ? ativos[3 % qtdAtivos] : (qtdAtivos > 2 ? ativos[2] : (qtdAtivos > 1 ? ativos[1] : (qtdAtivos > 0 ? ativos[0] : "Pausa"))),
                 suporte: "N/A"
             };
         } else {
-            // Se restarem 5 ou mais ativos, 4 vão para as casas e os excedentes vão para o suporte
+            // Se restarem 5 ou mais ativos, 4 vão para as casas de forma rotativa limpa e os excedentes vão para o suporte
             let suporteAtivos = ativos.slice(4);
             let casaAtivos = ativos.slice(0, 4);
 
