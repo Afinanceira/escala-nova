@@ -24,7 +24,7 @@ const flashRef = doc(db, "config", "flash_report");
 onSnapshot(flashRef, (docSnap) => { if (docSnap.exists()) flashText.value = docSnap.data().conteudo || ""; });
 flashText.addEventListener("input", async (e) => { await setDoc(flashRef, { conteudo: e.target.value }); });
 
-// Renderização Escala com colunas fixas e cabeçalho dinâmico para a aba Suporte
+// Renderização da Escala com colunas fixas e cabeçalho dinâmico para o Suporte
 onSnapshot(query(collection(db, "escala_ativa"), orderBy("ordem")), (snapshot) => {
     tbody.innerHTML = "";
     
@@ -88,6 +88,7 @@ onSnapshot(query(collection(db, "escala_ativa"), orderBy("ordem")), (snapshot) =
         let statusTexto = d.status || 'Online';
         let corStatus = statusTexto.startsWith("Online") ? "#28a745" : "#dc3545";
 
+        // Permite selecionar MÚLTIPLAS pessoas para pausa simultaneamente no menu de status
         linhaHTML += `<td>
             <div class="dropdown">
                 <button class="status-btn" style="background:${corStatus}">${statusTexto}</button>
@@ -101,7 +102,7 @@ onSnapshot(query(collection(db, "escala_ativa"), orderBy("ordem")), (snapshot) =
     });
 });
 
-// Botão Girar Rodízio com alocação correta e excludente
+// Botão Girar Rodízio com balanceamento estrito, evitando excesso de suporte contínuo e exclusão rigorosa das 4 casas
 document.getElementById("btn-girar").addEventListener("click", async () => {
     const turno = document.getElementById("select-turno").value;
     const horaInicio = turno === "manha" ? 7 : (turno === "noite" ? 15 : 23);
@@ -139,6 +140,10 @@ document.getElementById("btn-girar").addEventListener("click", async () => {
     const snaps = await getDocs(collection(db, "escala_ativa"));
     for (const s of snaps.docs) await deleteDoc(doc(db, "escala_ativa", s.id));
     
+    // Controle para limitar o suporte consecutivo e garantir revezamento justo
+    let historicoSuportePorColab = {};
+    colabs.forEach(c => historicoSuportePorColab[c] = 0);
+
     for (let i = 0; i < 8; i++) {
         let hora = (horaInicio + i) % 24;
         let horarioFormatado = `${hora.toString().padStart(2, '0')}:00`;
@@ -147,11 +152,13 @@ document.getElementById("btn-girar").addEventListener("click", async () => {
         let pixbetVal, bdsVal, ganheiVal, discordVal, suporteVal = "N/A";
 
         if (turno === "madrugada") {
+            // Madrugada: 3 casas + Discord fixo (TODOS), sem suporte
             pixbetVal = colabs[i % p];
             bdsVal = colabs[(i + 1) % p];
             discordVal = "TODOS";
             ganheiVal = colabs[(i + 2) % p];
         } else {
+            // Turnos normais: Rodízio pelas 4 casas principais de forma justa
             let pixIndex = i % p;
             let bdsIndex = (i + 1) % p;
             if (p > 1 && pixIndex === bdsIndex) bdsIndex = (bdsIndex + 1) % p;
@@ -164,12 +171,23 @@ document.getElementById("btn-girar").addEventListener("click", async () => {
             ganheiVal = colabs[ganheiIndex];
             discordVal = colabs[discordIndex];
 
+            // Regra de Suporte: Apenas quem NÃO está nas 4 casas principais pode ir para o suporte
             if (p >= 5) {
                 let alocadosNasQuatro = [pixbetVal, bdsVal, discordVal, ganheiVal];
                 let disponiveisParaSuporte = colabs.filter(n => !alocadosNasQuatro.includes(n));
 
                 if (disponiveisParaSuporte.length > 0) {
-                    suporteVal = disponiveisParaSuporte.join(", ");
+                    // Ordena os disponíveis priorizando quem menos ficou no suporte para evitar estresse/fadiga de 3h seguidas
+                    disponiveisParaSuporte.sort((a, b) => (historicoSuportePorColab[a] || 0) - (historicoSuportePorColab[b] || 0));
+
+                    let qtdSuporteNecessaria = p === 6 ? 1 : (p >= 7 ? Math.min(2, disponiveisParaSuporte.length) : 1);
+                    let suporteSelecionados = disponiveisParaSuporte.slice(0, qtdSuporteNecessaria);
+
+                    suporteSelecionados.forEach(c => {
+                        historicoSuportePorColab[c] = (historicoSuportePorColab[c] || 0) + 1;
+                    });
+
+                    suporteVal = suporteSelecionados.join(", ");
                 } else {
                     suporteVal = "N/A";
                 }
@@ -234,19 +252,21 @@ window.gerenciarStatus = async (id, valor) => {
     }
 };
 
-// Gerenciamento de Pausas Individuais com redistribuição total e suporte englobando todos os excedentes
+// Gerenciamento de Pausas Individuais ou Múltiplas (suporta mais de 3 pessoas em pausa simultânea) com redistribuição dinâmica
 window.alternarPausa = async (id, colaborador) => {
     const docRef = doc(db, "escala_ativa", id);
     const d = (await getDoc(docRef)).data();
     
     let pausadosAtuais = d.pausados || [];
     
+    // Permite adicionar ou remover pausas de forma totalmente individual
     if (pausadosAtuais.includes(colaborador)) {
         pausadosAtuais = pausadosAtuais.filter(n => n !== colaborador);
     } else {
         pausadosAtuais.push(colaborador);
     }
 
+    // Coleta todos os colaboradores originais do turno
     let listaBruta = [d.original_pixbet, d.original_bds, d.original_ganhei];
     if (d.turno === "madrugada") {
         listaBruta.push(d.original_ganhei);
@@ -260,6 +280,7 @@ window.alternarPausa = async (id, colaborador) => {
     }
     const unicosOriginais = [...new Set(listaBruta.filter(n => n && n.trim() !== "" && n !== "TODOS" && n !== "N/A"))];
 
+    // Separa quem está ativo de quem foi para a pausa (mesmo que sejam 1, 2, 3 ou mais pessoas)
     const ativos = unicosOriginais.filter(n => !pausadosAtuais.includes(n));
     const qtdAtivos = ativos.length;
     const temSuporteOriginal = d.original_suporte && d.original_suporte !== "N/A";
@@ -284,6 +305,7 @@ window.alternarPausa = async (id, colaborador) => {
         } else if (qtdAtivos === 1) {
             novaEscala = { pixbet: ativos[0], bds: ativos[0], ganhei: ativos[0], discord: ativos[0], suporte: temSuporteOriginal ? ativos[0] : "N/A" };
         } else {
+            // Redistribuição dinâmica baseada estritamente nos ativos restantes
             let pIdx = 0;
             let bIdx = 1 % qtdAtivos;
             if (pIdx === bIdx && qtdAtivos > 1) bIdx = 1;
