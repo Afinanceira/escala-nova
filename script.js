@@ -1,7 +1,7 @@
 import { db } from './firebaseConfig.js';
 import { collection, onSnapshot, doc, updateDoc, getDoc, setDoc, query, orderBy, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
 
-const SENHA_ADMIN = "1235";
+const SENHA_ADMIN = "253017";
 
 // Inicialização da Data
 const dataDisplay = document.getElementById("data-display");
@@ -124,12 +124,12 @@ if (btnGirar) {
         const inputs = [];
         for(let i=1; i<=7; i++) {
             const inputEl = document.getElementById(`c${i}`);
-            if (inputEl) inputs.push(inputEl.value);
+            if (inputEl && inputEl.value) inputs.push(inputEl.value);
         }
         const colabs = inputs.filter(n => n && n.trim() !== "");
         const p = colabs.length;
         
-        if (p === 0) { alert("Preencha pelo menos um colaborador!"); return; }
+        if (p === 0) { alert("Preencha pelo menos um colaborador nos campos c1 a c7!"); return; }
 
         const dataHoje = new Date().toLocaleDateString('pt-BR');
         const logRef = doc(db, "config", "sorteio_log");
@@ -270,7 +270,7 @@ window.gerenciarStatus = async (id, valor) => {
     }
 };
 
-// Gerenciamento de Pausas com regras estritas de suporte e separação Pixbet/BDS
+// Gerenciamento de Pausas
 window.alternarPausa = async (id, colaborador) => {
     const docRef = doc(db, "escala_ativa", id);
     const snap = await getDoc(docRef);
@@ -325,7 +325,6 @@ window.alternarPausa = async (id, colaborador) => {
                 suporte: "N/A"
             };
         } else if (qtdAtivos === 2) {
-            // Exatamente 2 ativos: dividem as 4 casas (2 a 2), separando Pixbet e BDS obrigatoriamente
             novaEscala = {
                 pixbet: ativos[0],
                 bds: ativos[1],
@@ -350,7 +349,6 @@ window.alternarPausa = async (id, colaborador) => {
                 suporte: "N/A"
             };
         } else {
-            // Mais de 4 ativos: as 4 primeiras posições vão para as casas, e o excedente vai para o suporte
             let suporteAtivos = ativos.slice(4);
             let casaAtivos = ativos.slice(0, 4);
 
