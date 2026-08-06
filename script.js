@@ -1,10 +1,13 @@
 import { db } from './firebaseConfig.js';
 import { collection, onSnapshot, doc, updateDoc, getDoc, setDoc, query, orderBy, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
 
-const SENHA_ADMIN = "253017";
+const SENHA_ADMIN = "1235";
 
 // Inicialização da Data
-document.getElementById("data-display").innerText = new Date().toLocaleDateString('pt-BR');
+const dataDisplay = document.getElementById("data-display");
+if (dataDisplay) {
+    dataDisplay.innerText = new Date().toLocaleDateString('pt-BR');
+}
 
 const tbody = document.getElementById("escala-body");
 const theadTr = document.querySelector(".grade-table thead tr") || document.querySelector("thead tr");
@@ -12,20 +15,29 @@ const flashText = document.getElementById("flash-text");
 const inputResponsavel = document.getElementById("responsavel-relatorio");
 
 // Sincronizar o Responsável pelo Relatório salvo no Firestore
-const relatorioRef = doc(db, "config", "responsavel_relatorio");
-onSnapshot(relatorioRef, (docSnap) => {
-    if (docSnap.exists()) {
+onSnapshot(doc(db, "config", "responsavel_relatorio"), (docSnap) => {
+    if (docSnap.exists() && inputResponsavel) {
         inputResponsavel.value = docSnap.data().nome || "";
     }
 });
 
 // Flash Report
 const flashRef = doc(db, "config", "flash_report");
-onSnapshot(flashRef, (docSnap) => { if (docSnap.exists()) flashText.value = docSnap.data().conteudo || ""; });
-flashText.addEventListener("input", async (e) => { await setDoc(flashRef, { conteudo: e.target.value }); });
+onSnapshot(flashRef, (docSnap) => { 
+    if (docSnap.exists() && flashText) { 
+        flashText.value = docSnap.data().conteudo || ""; 
+    } 
+});
+
+if (flashText) {
+    flashText.addEventListener("input", async (e) => { 
+        await setDoc(flashRef, { conteudo: e.target.value }); 
+    });
+}
 
 // Renderização da Escala com colunas fixas e cabeçalho dinâmico para o Suporte
 onSnapshot(query(collection(db, "escala_ativa"), orderBy("ordem")), (snapshot) => {
+    if (!tbody) return;
     tbody.innerHTML = "";
     
     let temSuporteNaEscala = false;
@@ -102,121 +114,131 @@ onSnapshot(query(collection(db, "escala_ativa"), orderBy("ordem")), (snapshot) =
 });
 
 // Botão Girar Rodízio
-document.getElementById("btn-girar").addEventListener("click", async () => {
-    const turno = document.getElementById("select-turno").value;
-    const horaInicio = turno === "manha" ? 7 : (turno === "noite" ? 15 : 23);
-    
-    const inputs = [];
-    for(let i=1; i<=7; i++) inputs.push(document.getElementById(`c${i}`).value);
-    const colabs = inputs.filter(n => n && n.trim() !== "");
-    const p = colabs.length;
-    
-    if (p === 0) { alert("Preencha pelo menos um colaborador!"); return; }
+const btnGirar = document.getElementById("btn-girar");
+if (btnGirar) {
+    btnGirar.addEventListener("click", async () => {
+        const selectTurno = document.getElementById("select-turno");
+        const turno = selectTurno ? selectTurno.value : "manha";
+        const horaInicio = turno === "manha" ? 7 : (turno === "noite" ? 15 : 23);
+        
+        const inputs = [];
+        for(let i=1; i<=7; i++) {
+            const inputEl = document.getElementById(`c${i}`);
+            if (inputEl) inputs.push(inputEl.value);
+        }
+        const colabs = inputs.filter(n => n && n.trim() !== "");
+        const p = colabs.length;
+        
+        if (p === 0) { alert("Preencha pelo menos um colaborador!"); return; }
 
-    const dataHoje = new Date().toLocaleDateString('pt-BR');
-    const logRef = doc(db, "config", "sorteio_log");
-    const logSnap = await getDoc(logRef);
-    let dadosLog = logSnap.exists() && logSnap.data().data === dataHoje ? logSnap.data() : { data: dataHoje, contagem: 0 };
+        const dataHoje = new Date().toLocaleDateString('pt-BR');
+        const logRef = doc(db, "config", "sorteio_log");
+        const logSnap = await getDoc(logRef);
+        let dadosLog = logSnap.exists() && logSnap.data().data === dataHoje ? logSnap.data() : { data: dataHoje, contagem: 0 };
 
-    if (dadosLog.contagem >= 2) {
-        const senha = prompt("Sorteio limitado (2x/dia). Digite a senha:");
-        if (senha !== SENHA_ADMIN) { alert("Acesso negado."); return; }
-    }
-
-    const historicoRelatorioSnap = await getDoc(relatorioRef);
-    let ultimoResponsavel = historicoRelatorioSnap.exists() ? historicoRelatorioSnap.data().nome : "";
-
-    let candidatosElegiveis = colabs.filter(n => n !== ultimoResponsavel);
-    if (candidatosElegiveis.length === 0) {
-        candidatosElegiveis = colabs;
-    }
-
-    let responsavelSorteado = candidatosElegiveis[Math.floor(Math.random() * candidatosElegiveis.length)];
-    await setDoc(relatorioRef, { nome: responsavelSorteado, data: dataHoje });
-    inputResponsavel.value = responsavelSorteado;
-
-    const snaps = await getDocs(collection(db, "escala_ativa"));
-    for (const s of snaps.docs) await deleteDoc(doc(db, "escala_ativa", s.id));
-    
-    let totalVezesSuporte = {};
-    colabs.forEach(c => totalVezesSuporte[c] = 0);
-    let suporteHoraAnterior = [];
-
-    for (let i = 0; i < 8; i++) {
-        let hora = (horaInicio + i) % 24;
-        let horarioFormatado = `${hora.toString().padStart(2, '0')}:00`;
-        let escala = { ordem: i, horario: horarioFormatado, status: "Online", data_registro: dataHoje, turno: turno };
-
-        let pixbetVal, bdsVal, ganheiVal, discordVal, suporteVal = "N/A";
-
-        if (turno === "madrugada") {
-            pixbetVal = colabs[i % p];
-            bdsVal = colabs[(i + 1) % p];
-            discordVal = "TODOS";
-            ganheiVal = colabs[(i + 2) % p];
-        } else {
-            if (p >= 5) {
-                let qtdSuporteNecessaria = p - 4;
-                
-                let candidatosOrdenados = [...colabs].sort((a, b) => {
-                    let aFezAntes = suporteHoraAnterior.includes(a) ? 1 : 0;
-                    let bFezAntes = suporteHoraAnterior.includes(b) ? 1 : 0;
-                    if (aFezAntes !== bFezAntes) return aFezAntes - bFezAntes;
-                    return totalVezesSuporte[a] - totalVezesSuporte[b];
-                });
-
-                let suporteSelecionados = candidatosOrdenados.slice(0, qtdSuporteNecessaria);
-                suporteVal = suporteSelecionados.join(", ");
-                suporteHoraAnterior = suporteSelecionados;
-                suporteSelecionados.forEach(c => totalVezesSuporte[c]++);
-
-                let disponiveisCasas = colabs.filter(n => !suporteSelecionados.includes(n));
-                let offset = i % disponiveisCasas.length;
-                pixbetVal = disponiveisCasas[offset % disponiveisCasas.length];
-                bdsVal = disponiveisCasas[(offset + 1) % disponiveisCasas.length];
-                discordVal = disponiveisCasas[(offset + 2) % disponiveisCasas.length];
-                ganheiVal = disponiveisCasas[(offset + 3) % disponiveisCasas.length];
-            } else {
-                let offset = i % p;
-                pixbetVal = colabs[offset % p];
-                bdsVal = colabs[(offset + 1) % p];
-                discordVal = colabs[(offset + 2) % p];
-                ganheiVal = colabs[(offset + 3) % p];
-                suporteVal = "N/A";
-            }
+        if (dadosLog.contagem >= 2) {
+            const senha = prompt("Sorteio limitado (2x/dia). Digite a senha:");
+            if (senha !== SENHA_ADMIN) { alert("Acesso negado."); return; }
         }
 
-        escala = { 
-            ...escala, 
-            pixbet: pixbetVal, 
-            bds: bdsVal, 
-            discord: discordVal, 
-            ganhei: ganheiVal, 
-            suporte: suporteVal,
-            original_pixbet: pixbetVal, 
-            original_bds: bdsVal, 
-            original_discord: discordVal, 
-            original_ganhei: ganheiVal,
-            original_suporte: suporteVal,
-            pausados: []
-        };
+        const historicoRelatorioSnap = await getDoc(relatorioRef);
+        let ultimoResponsavel = historicoRelatorioSnap.exists() ? historicoRelatorioSnap.data().nome : "";
 
-        await setDoc(doc(db, "escala_ativa", `turno_${i}`), escala);
-    }
-    
-    dadosLog.contagem += 1;
-    await setDoc(logRef, dadosLog);
-    alert(`Escala gerada e relatório atribuído a ${responsavelSorteado}!`);
-});
+        let candidatosElegiveis = colabs.filter(n => n !== ultimoResponsavel);
+        if (candidatosElegiveis.length === 0) {
+            candidatosElegiveis = colabs;
+        }
 
-// Botão Limpar Escala
-document.getElementById("btn-limpar").addEventListener("click", async () => {
-    if (confirm("Deseja realmente apagar toda a escala atual?")) {
+        let responsavelSorteado = candidatosElegiveis[Math.floor(Math.random() * candidatosElegiveis.length)];
+        await setDoc(relatorioRef, { nome: responsavelSorteado, data: dataHoje });
+        if (inputResponsavel) inputResponsavel.value = responsavelSorteado;
+
         const snaps = await getDocs(collection(db, "escala_ativa"));
         for (const s of snaps.docs) await deleteDoc(doc(db, "escala_ativa", s.id));
-        alert("Escala limpa com sucesso!");
-    }
-});
+        
+        let totalVezesSuporte = {};
+        colabs.forEach(c => totalVezesSuporte[c] = 0);
+        let suporteHoraAnterior = [];
+
+        for (let i = 0; i < 8; i++) {
+            let hora = (horaInicio + i) % 24;
+            let horarioFormatado = `${hora.toString().padStart(2, '0')}:00`;
+            let escala = { ordem: i, horario: horarioFormatado, status: "Online", data_registro: dataHoje, turno: turno };
+
+            let pixbetVal, bdsVal, ganheiVal, discordVal, suporteVal = "N/A";
+
+            if (turno === "madrugada") {
+                pixbetVal = colabs[i % p];
+                bdsVal = colabs[(i + 1) % p];
+                discordVal = "TODOS";
+                ganheiVal = colabs[(i + 2) % p];
+            } else {
+                if (p >= 5) {
+                    let qtdSuporteNecessaria = p - 4;
+                    
+                    let candidatosOrdenados = [...colabs].sort((a, b) => {
+                        let aFezAntes = suporteHoraAnterior.includes(a) ? 1 : 0;
+                        let bFezAntes = suporteHoraAnterior.includes(b) ? 1 : 0;
+                        if (aFezAntes !== bFezAntes) return aFezAntes - bFezAntes;
+                        return totalVezesSuporte[a] - totalVezesSuporte[b];
+                    });
+
+                    let suporteSelecionados = candidatosOrdenados.slice(0, qtdSuporteNecessaria);
+                    suporteVal = suporteSelecionados.join(", ");
+                    suporteHoraAnterior = suporteSelecionados;
+                    suporteSelecionados.forEach(c => totalVezesSuporte[c]++);
+
+                    let disponiveisCasas = colabs.filter(n => !suporteSelecionados.includes(n));
+                    let offset = i % disponiveisCasas.length;
+                    pixbetVal = disponiveisCasas[offset % disponiveisCasas.length];
+                    bdsVal = disponiveisCasas[(offset + 1) % disponiveisCasas.length];
+                    discordVal = disponiveisCasas[(offset + 2) % disponiveisCasas.length];
+                    ganheiVal = disponiveisCasas[(offset + 3) % disponiveisCasas.length];
+                } else {
+                    let offset = i % p;
+                    pixbetVal = colabs[offset % p];
+                    bdsVal = colabs[(offset + 1) % p];
+                    discordVal = colabs[(offset + 2) % p];
+                    ganheiVal = colabs[(offset + 3) % p];
+                    suporteVal = "N/A";
+                }
+            }
+
+            escala = { 
+                ...escala, 
+                pixbet: pixbetVal, 
+                bds: bdsVal, 
+                discord: discordVal, 
+                ganhei: ganheiVal, 
+                suporte: suporteVal,
+                original_pixbet: pixbetVal, 
+                original_bds: bdsVal, 
+                original_discord: discordVal, 
+                original_ganhei: ganheiVal,
+                original_suporte: suporteVal,
+                pausados: []
+            };
+
+            await setDoc(doc(db, "escala_ativa", `turno_${i}`), escala);
+        }
+        
+        dadosLog.contagem += 1;
+        await setDoc(logRef, dadosLog);
+        alert(`Escala gerada e relatório atribuído a ${responsavelSorteado}!`);
+    });
+}
+
+// Botão Limpar Escala
+const btnLimpar = document.getElementById("btn-limpar");
+if (btnLimpar) {
+    btnLimpar.addEventListener("click", async () => {
+        if (confirm("Deseja realmente apagar toda a escala atual?")) {
+            const snaps = await getDocs(collection(db, "escala_ativa"));
+            for (const s of snaps.docs) await deleteDoc(doc(db, "escala_ativa", s.id));
+            alert("Escala limpa com sucesso!");
+        }
+    });
+}
 
 // Funções Globais
 window.checkin = async (id, col) => {
@@ -248,7 +270,7 @@ window.gerenciarStatus = async (id, valor) => {
     }
 };
 
-// Gerenciamento de Pausas seguro
+// Gerenciamento de Pausas com regras estritas de suporte e separação Pixbet/BDS
 window.alternarPausa = async (id, colaborador) => {
     const docRef = doc(db, "escala_ativa", id);
     const snap = await getDoc(docRef);
@@ -294,7 +316,16 @@ window.alternarPausa = async (id, colaborador) => {
             };
         }
     } else {
-        if (qtdAtivos === 2) {
+        if (qtdAtivos === 1) {
+            novaEscala = {
+                pixbet: ativos[0],
+                bds: ativos[0],
+                discord: ativos[0],
+                ganhei: ativos[0],
+                suporte: "N/A"
+            };
+        } else if (qtdAtivos === 2) {
+            // Exatamente 2 ativos: dividem as 4 casas (2 a 2), separando Pixbet e BDS obrigatoriamente
             novaEscala = {
                 pixbet: ativos[0],
                 bds: ativos[1],
@@ -318,7 +349,8 @@ window.alternarPausa = async (id, colaborador) => {
                 ganhei: ativos[3],
                 suporte: "N/A"
             };
-        } else if (qtdAtivos > 4) {
+        } else {
+            // Mais de 4 ativos: as 4 primeiras posições vão para as casas, e o excedente vai para o suporte
             let suporteAtivos = ativos.slice(4);
             let casaAtivos = ativos.slice(0, 4);
 
@@ -328,14 +360,6 @@ window.alternarPausa = async (id, colaborador) => {
                 discord: casaAtivos[2],
                 ganhei: casaAtivos[3],
                 suporte: suporteAtivos.join(", ")
-            };
-        } else {
-            novaEscala = {
-                pixbet: "Pausa",
-                bds: "Pausa",
-                discord: "Pausa",
-                ganhei: "Pausa",
-                suporte: "N/A"
             };
         }
     }
