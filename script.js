@@ -1,7 +1,7 @@
 import { db } from './firebaseConfig.js';
-import { collection, onSnapshot, doc, updateDoc, getDoc, setDoc, query, orderBy, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
+import { collection, onSnapshot, doc, updateDoc, getDoc, setDoc, query, orderBy, getDocs, deleteDoc, writeBatch } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
 
-const SENHA_ADMIN = "253017";
+const SENHA_ADMIN = "1235";
 
 // Inicialização da Data
 const dataDisplay = document.getElementById("data-display");
@@ -15,7 +15,8 @@ const flashText = document.getElementById("flash-text");
 const inputResponsavel = document.getElementById("responsavel-relatorio");
 
 // Sincronizar o Responsável pelo Relatório salvo no Firestore
-onSnapshot(doc(db, "config", "responsavel_relatorio"), (docSnap) => {
+const relatorioRef = doc(db, "config", "responsavel_relatorio");
+onSnapshot(relatorioRef, (docSnap) => {
     if (docSnap.exists() && inputResponsavel) {
         inputResponsavel.value = docSnap.data().nome || "";
     }
@@ -113,7 +114,7 @@ onSnapshot(query(collection(db, "escala_ativa"), orderBy("ordem")), (snapshot) =
     });
 });
 
-// Botão Girar Rodízio
+// Botão Girar Rodízio com Batch otimizado para Firestore
 const btnGirar = document.getElementById("btn-girar");
 if (btnGirar) {
     btnGirar.addEventListener("click", async () => {
@@ -154,14 +155,19 @@ if (btnGirar) {
             await setDoc(relatorioRef, { nome: responsavelSorteado, data: dataHoje });
             if (inputResponsavel) inputResponsavel.value = responsavelSorteado;
 
+            // Usando Batch para garantir gravação atômica no Firestore
+            const batch = writeBatch(db);
             const snaps = await getDocs(collection(db, "escala_ativa"));
-            for (const s of snaps.docs) {
-                await deleteDoc(doc(db, "escala_ativa", s.id));
-            }
-            
+            snaps.forEach((s) => {
+                batch.delete(s.ref);
+            });
+            await batch.commit();
+
             let totalVezesSuporte = {};
             colabs.forEach(c => totalVezesSuporte[c] = 0);
             let suporteHoraAnterior = [];
+
+            const batchNovo = writeBatch(db);
 
             for (let i = 0; i < 8; i++) {
                 let hora = (horaInicio + i) % 24;
@@ -222,15 +228,18 @@ if (btnGirar) {
                     pausados: []
                 };
 
-                await setDoc(doc(db, "escala_ativa", `turno_${i}`), escala);
+                const novoDocRef = doc(db, "escala_ativa", `turno_${i}`);
+                batchNovo.set(novoDocRef, escala);
             }
+            
+            await batchNovo.commit();
             
             dadosLog.contagem += 1;
             await setDoc(logRef, dadosLog);
             alert(`Escala gerada e relatório atribuído a ${responsavelSorteado}!`);
         } catch (error) {
             console.error("Erro detalhado no rodízio:", error);
-            alert("Erro ao gerar escala no banco de dados: " + error.message);
+            alert("Erro ao gerar escala no Firestore: " + error.message);
         }
     });
 }
@@ -240,8 +249,12 @@ const btnLimpar = document.getElementById("btn-limpar");
 if (btnLimpar) {
     btnLimpar.addEventListener("click", async () => {
         if (confirm("Deseja realmente apagar toda a escala atual?")) {
+            const batch = writeBatch(db);
             const snaps = await getDocs(collection(db, "escala_ativa"));
-            for (const s of snaps.docs) await deleteDoc(doc(db, "escala_ativa", s.id));
+            snaps.forEach((s) => {
+                batch.delete(s.ref);
+            });
+            await batch.commit();
             alert("Escala limpa com sucesso!");
         }
     });
