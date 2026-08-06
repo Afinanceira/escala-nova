@@ -1,8 +1,7 @@
 import { db } from './firebaseConfig.js';
 import { collection, onSnapshot, doc, updateDoc, getDoc, setDoc, query, orderBy, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
 
-const SENHA_ADMIN = "253017
-    ";
+const SENHA_ADMIN = "253017";
 
 // Inicialização da Data
 document.getElementById("data-display").innerText = new Date().toLocaleDateString('pt-BR');
@@ -222,14 +221,20 @@ document.getElementById("btn-limpar").addEventListener("click", async () => {
 // Funções Globais
 window.checkin = async (id, col) => {
     const docRef = doc(db, "escala_ativa", id);
-    const d = (await docRef.get?.() || await getDoc(docRef)).data();
+    const snap = await getDoc(docRef);
+    if (!snap.exists()) return;
+    const d = snap.data();
     if ((col === 'discord' && d.discord === "TODOS") || d[col] === "N/A" || !d[col]) return;
-    await updateDoc(docRef, { [`checkin_${col}`]: d[`checkin_${col}`] === 'OK' ? 'Pendente' : 'OK' });
+    const campoCheck = `checkin_${col}`;
+    const atual = d[campoCheck] === 'OK' ? 'Pendente' : 'OK';
+    await updateDoc(docRef, { [campoCheck]: atual });
 };
 
 window.gerenciarStatus = async (id, valor) => {
     const docRef = doc(db, "escala_ativa", id);
-    const d = (await getDoc(docRef)).data();
+    const snap = await getDoc(docRef);
+    if (!snap.exists()) return;
+    const d = snap.data();
     if (valor === "Online") { 
         await updateDoc(docRef, { 
             pixbet: d.original_pixbet, 
@@ -243,10 +248,12 @@ window.gerenciarStatus = async (id, valor) => {
     }
 };
 
-// Gerenciamento de Pausas com extração unificada robusta
+// Gerenciamento de Pausas seguro
 window.alternarPausa = async (id, colaborador) => {
     const docRef = doc(db, "escala_ativa", id);
-    const d = (await getDoc(docRef)).data();
+    const snap = await getDoc(docRef);
+    if (!snap.exists()) return;
+    const d = snap.data();
     
     let pausadosAtuais = d.pausados || [];
     
@@ -274,15 +281,16 @@ window.alternarPausa = async (id, colaborador) => {
     let novaEscala = {};
     if (d.turno === "madrugada") {
         if (qtdAtivos === 0) {
-            novaEscala = { pixbet: "Pausa", bds: "Pausa", ganhei: "Pausa", discord: "TODOS" };
+            novaEscala = { pixbet: "Pausa", bds: "Pausa", ganhei: "Pausa", discord: "TODOS", suporte: "N/A" };
         } else if (qtdAtivos === 1) {
-            novaEscala = { pixbet: ativos[0], bds: ativos[0], ganhei: ativos[0], discord: "TODOS" };
+            novaEscala = { pixbet: ativos[0], bds: ativos[0], ganhei: ativos[0], discord: "TODOS", suporte: "N/A" };
         } else {
             novaEscala = {
                 pixbet: ativos[0 % qtdAtivos],
                 bds: ativos[1 % qtdAtivos],
                 ganhei: ativos[2 % qtdAtivos],
-                discord: "TODOS"
+                discord: "TODOS",
+                suporte: "N/A"
             };
         }
     } else {
