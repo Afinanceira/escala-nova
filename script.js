@@ -1,7 +1,8 @@
 import { db } from './firebaseConfig.js';
 import { collection, onSnapshot, doc, updateDoc, getDoc, setDoc, query, orderBy, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
 
-const SENHA_ADMIN = "253017";
+const SENHA_ADMIN = "253017
+    ";
 
 // Inicialização da Data
 document.getElementById("data-display").innerText = new Date().toLocaleDateString('pt-BR');
@@ -101,7 +102,7 @@ onSnapshot(query(collection(db, "escala_ativa"), orderBy("ordem")), (snapshot) =
     });
 });
 
-// Botão Girar Rodízio com regra estrita de suporte e separação Pixbet/BDS
+// Botão Girar Rodízio
 document.getElementById("btn-girar").addEventListener("click", async () => {
     const turno = document.getElementById("select-turno").value;
     const horaInicio = turno === "manha" ? 7 : (turno === "noite" ? 15 : 23);
@@ -242,7 +243,7 @@ window.gerenciarStatus = async (id, valor) => {
     }
 };
 
-// Gerenciamento de Pausas com redistribuição justa, divisão exata de 2 categorias e separação estrita Pixbet/BDS
+// Gerenciamento de Pausas com extração unificada robusta
 window.alternarPausa = async (id, colaborador) => {
     const docRef = doc(db, "escala_ativa", id);
     const d = (await getDoc(docRef)).data();
@@ -255,18 +256,17 @@ window.alternarPausa = async (id, colaborador) => {
         pausadosAtuais.push(colaborador);
     }
 
-    let listaBruta = [d.original_pixbet, d.original_bds, d.original_ganhei];
-    if (d.turno === "madrugada") {
-        listaBruta.push(d.original_ganhei);
-    } else {
-        if (d.original_suporte && d.original_suporte !== "N/A") {
-            d.original_suporte.split(',').forEach(s => listaBruta.push(s.trim()));
+    let listaBruta = [d.original_pixbet, d.original_bds, d.original_discord, d.original_ganhei, d.original_suporte];
+    let colabsIndividuais = [];
+    listaBruta.forEach(item => {
+        if (item && item.trim() !== "" && item !== "TODOS" && item !== "N/A") {
+            item.split(',').forEach(nome => {
+                let nomeLimpo = nome.trim();
+                if (nomeLimpo) colabsIndividuais.push(nomeLimpo);
+            });
         }
-        if (d.original_discord && d.original_discord !== "TODOS") {
-            listaBruta.push(d.original_discord);
-        }
-    }
-    const unicosOriginais = [...new Set(listaBruta.filter(n => n && n.trim() !== "" && n !== "TODOS" && n !== "N/A"))];
+    });
+    const unicosOriginais = [...new Set(colabsIndividuais)];
 
     const ativos = unicosOriginais.filter(n => !pausadosAtuais.includes(n));
     const qtdAtivos = ativos.length;
@@ -274,21 +274,19 @@ window.alternarPausa = async (id, colaborador) => {
     let novaEscala = {};
     if (d.turno === "madrugada") {
         if (qtdAtivos === 0) {
-            novaEscala = { pixbet: "Pausa", bds: "Pausa", ganhei: "Pausa" };
+            novaEscala = { pixbet: "Pausa", bds: "Pausa", ganhei: "Pausa", discord: "TODOS" };
         } else if (qtdAtivos === 1) {
-            novaEscala = { pixbet: ativos[0], bds: ativos[0], ganhei: ativos[0] };
+            novaEscala = { pixbet: ativos[0], bds: ativos[0], ganhei: ativos[0], discord: "TODOS" };
         } else {
             novaEscala = {
                 pixbet: ativos[0 % qtdAtivos],
                 bds: ativos[1 % qtdAtivos],
-                ganhei: ativos[2 % qtdAtivos]
+                ganhei: ativos[2 % qtdAtivos],
+                discord: "TODOS"
             };
         }
-        novaEscala.discord = "TODOS";
     } else {
         if (qtdAtivos === 2) {
-            // Regra específica: exatos 2 ativos cobrindo as 4 casas -> cada um pega 2 colunas, separando Pixbet e BDS obrigatoriamente
-            // Colaborador 1 fica com Pixbet + Discord | Colaborador 2 fica com BDS + Ganhei
             novaEscala = {
                 pixbet: ativos[0],
                 bds: ativos[1],
@@ -296,36 +294,25 @@ window.alternarPausa = async (id, colaborador) => {
                 ganhei: ativos[1],
                 suporte: "N/A"
             };
-        } else if (qtdAtivos <= 4) {
-            let offset = 0;
-            let pix, bd, disc, ganh;
-            // Garante loop seguro para evitar Pixbet e BDS juntos caso qtdAtivos seja 3 ou 4
-            do {
-                pix = ativos[offset % qtdAtivos];
-                bd = ativos[(offset + 1) % qtdAtivos];
-                disc = ativos[(offset + 2) % qtdAtivos];
-                ganh = ativos[(offset + 3) % qtdAtivos];
-                offset++;
-            } while (pix === bd && qtdAtivos > 1);
-
+        } else if (qtdAtivos === 3) {
             novaEscala = {
-                pixbet: pix,
-                bds: bd,
-                discord: disc,
-                ganhei: ganh,
+                pixbet: ativos[0],
+                bds: ativos[1],
+                discord: ativos[2],
+                ganhei: ativos[0],
                 suporte: "N/A"
             };
-        } else {
+        } else if (qtdAtivos === 4) {
+            novaEscala = {
+                pixbet: ativos[0],
+                bds: ativos[1],
+                discord: ativos[2],
+                ganhei: ativos[3],
+                suporte: "N/A"
+            };
+        } else if (qtdAtivos > 4) {
             let suporteAtivos = ativos.slice(4);
             let casaAtivos = ativos.slice(0, 4);
-
-            let pix = casaAtivos[0];
-            let bd = casaAtivos[1];
-            if (pix === bd && casaAtivos.length > 1) {
-                let temp = casaAtivos[1];
-                casaAtivos[1] = casaAtivos[2] || casaAtivos[0];
-                casaAtivos[2] = temp;
-            }
 
             novaEscala = {
                 pixbet: casaAtivos[0],
@@ -333,6 +320,14 @@ window.alternarPausa = async (id, colaborador) => {
                 discord: casaAtivos[2],
                 ganhei: casaAtivos[3],
                 suporte: suporteAtivos.join(", ")
+            };
+        } else {
+            novaEscala = {
+                pixbet: "Pausa",
+                bds: "Pausa",
+                discord: "Pausa",
+                ganhei: "Pausa",
+                suporte: "N/A"
             };
         }
     }
