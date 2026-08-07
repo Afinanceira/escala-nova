@@ -114,7 +114,7 @@ onSnapshot(query(collection(db, "escala_ativa"), orderBy("ordem")), (snapshot) =
     });
 });
 
-// Botão Girar Rodízio com Batch otimizado para Firestore
+// Botão Girar Rodízio com regras fixas de suporte justo e separação Pixbet/BDS
 const btnGirar = document.getElementById("btn-girar");
 if (btnGirar) {
     btnGirar.addEventListener("click", async () => {
@@ -184,6 +184,7 @@ if (btnGirar) {
                     if (p >= 5) {
                         let qtdSuporteNecessaria = p - 4;
                         
+                        // REGRA FIXA: Suporte justo (evita repetição excessiva da mesma pessoa)
                         let candidatosOrdenados = [...colabs].sort((a, b) => {
                             let aFezAntes = suporteHoraAnterior.includes(a) ? 1 : 0;
                             let bFezAntes = suporteHoraAnterior.includes(b) ? 1 : 0;
@@ -199,20 +200,13 @@ if (btnGirar) {
                         let disponiveisCasas = colabs.filter(n => !suporteSelecionados.includes(n));
                         let offset = i % disponiveisCasas.length;
                         pixbetVal = disponiveisCasas[offset % disponiveisCasas.length];
-                        bdsVal = disponiveisCasas[(offset + 1) % disponiveisCasas.length];
+                        bdsVal = disponiveisCasas[(offset + 1) % disponiveisCasas.length]; // Garante separação Pixbet e BDS
                         discordVal = disponiveisCasas[(offset + 2) % disponiveisCasas.length];
                         ganheiVal = disponiveisCasas[(offset + 3) % disponiveisCasas.length];
-                    } else if (p === 3) {
-                        let offset = i % 3;
-                        pixbetVal = colabs[offset % 3];          // Pixbet exclusiva
-                        bdsVal = colabs[(offset + 1) % 3];       // BDS compartilhada
-                        discordVal = colabs[(offset + 1) % 3];   // Discord compartilhada com BDS
-                        ganheiVal = colabs[(offset + 2) % 3];    // Ganhei isolada
-                        suporteVal = "N/A";
                     } else {
                         let offset = i % p;
                         pixbetVal = colabs[offset % p];
-                        bdsVal = colabs[(offset + 1) % p];
+                        bdsVal = colabs[(offset + 1) % p]; // Garante separação Pixbet e BDS
                         discordVal = colabs[(offset + 2) % p];
                         ganheiVal = colabs[(offset + 3) % p];
                         suporteVal = "N/A";
@@ -296,7 +290,7 @@ window.gerenciarStatus = async (id, valor) => {
     }
 };
 
-// Gerenciamento de Pausas com Pixbet exclusiva para 3 ativos
+// Gerenciamento de Pausas com regras fixadas (Pixbet exclusiva e separação BDS)
 window.alternarPausa = async (id, colaborador) => {
     const docRef = doc(db, "escala_ativa", id);
     const snap = await getDoc(docRef);
@@ -359,12 +353,12 @@ window.alternarPausa = async (id, colaborador) => {
                 suporte: "N/A"
             };
         } else if (qtdAtivos === 3) {
-            // 3 ativos: Pixbet exclusiva (ativo 0), BDS e Discord divididos (ativo 1), Ganhei isolada (ativo 2)
+            // REGRA FIXA: Ativos[0] fica EXCLUSIVO na Pixbet, sem duplicar em outras casas
             novaEscala = {
                 pixbet: ativos[0],
                 bds: ativos[1],
-                discord: ativos[1],
-                ganhei: ativos[2],
+                discord: ativos[2],
+                ganhei: ativos[1],
                 suporte: "N/A"
             };
         } else if (qtdAtivos === 4) {
